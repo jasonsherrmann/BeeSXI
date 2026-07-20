@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "assembled=false": {
+      "model": "beesxi:block/molecular_analyzer"
+    },
+    "assembled=true": {
+      "model": "beesxi:block/molecular_analyzer_assembled"
+    }
+  }
+}

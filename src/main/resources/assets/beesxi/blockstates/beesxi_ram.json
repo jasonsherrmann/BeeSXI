@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "assembled=false": {
+      "model": "beesxi:block/beesxi_ram"
+    },
+    "assembled=true": {
+      "model": "beesxi:block/beesxi_ram_assembled"
+    }
+  }
+}

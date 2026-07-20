@@ -1,7 +1,10 @@
 {
   "itemGroup.beesxi": "BeeSXI",
-  "block.beesxi.apiary_controller": "Apiary Core Controller",
-  "block.beesxi.apiary_casing": "Apiary Casing",
-  "block.beesxi.apiary_accelerator": "Apiary Accelerator",
-  "block.beesxi.apiary_hyper_accelerator": "Apiary Hyper Accelerator"
+  "block.beesxi.beesxi_controller": "BeeSXI Controller",
+  "block.beesxi.beesxi_cpu": "BeeSXI CPU",
+  "block.beesxi.beesxi_ram": "BeeSXI RAM",
+  "block.beesxi.beesxi_hdd": "BeeSXI HDD",
+  "block.beesxi.beesxi_casing": "BeeSXI Casing",
+  "block.beesxi.molecular_analyzer": "Molecular Analyzer",
+  "menu.beesxi.beesxi_server": "BeeSXI Server"
 }

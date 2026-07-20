@@ -1,11 +1,10 @@
-package com.jaysin.beesxi.apiary;
+package com.jaysin.beesxi.server;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -21,10 +20,10 @@ import net.minecraft.world.phys.BlockHitResult;
 
 import com.jaysin.beesxi.BeeSXI;
 
-public class MultiblockApiaryControllerBlock extends Block implements EntityBlock {
+public class BeeSXIControllerBlock extends Block implements EntityBlock {
     public static final BooleanProperty ASSEMBLED = BooleanProperty.create("assembled");
 
-    public MultiblockApiaryControllerBlock(Properties properties) {
+    public BeeSXIControllerBlock(Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(ASSEMBLED, false));
     }
@@ -32,7 +31,7 @@ public class MultiblockApiaryControllerBlock extends Block implements EntityBloc
     @Nullable
     @Override
     public BlockEntity newBlockEntity(@Nonnull BlockPos pos, @Nonnull BlockState state) {
-        return new MultiblockApiaryBlockEntity(pos, state);
+        return new BeeSXIControllerBlockEntity(pos, state);
     }
 
     @Nullable
@@ -42,17 +41,13 @@ public class MultiblockApiaryControllerBlock extends Block implements EntityBloc
         @Nonnull BlockState state,
         @Nonnull BlockEntityType<T> type
     ) {
-        if (type != BeeSXI.MULTIBLOCK_APIARY_BLOCK_ENTITY.get()) {
+        if (type != BeeSXI.BEESXI_CONTROLLER_BLOCK_ENTITY.get()) {
             return null;
         }
 
-        return (tickerLevel, tickerPos, tickerState, entity) -> {
-            if (entity instanceof MultiblockApiaryBlockEntity apiary) {
-                if (tickerLevel.isClientSide) {
-                    apiary.clientTick(tickerLevel, tickerPos, tickerState);
-                } else {
-                    apiary.serverTick(tickerLevel, tickerPos, tickerState);
-                }
+        return (tickLevel, tickPos, tickState, entity) -> {
+            if (entity instanceof BeeSXIControllerBlockEntity controller) {
+                controller.serverTick(tickLevel, tickPos, tickState);
             }
         };
     }
@@ -70,9 +65,8 @@ public class MultiblockApiaryControllerBlock extends Block implements EntityBloc
             return InteractionResult.SUCCESS;
         }
 
-        BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof MultiblockApiaryBlockEntity apiary && player instanceof ServerPlayer serverPlayer) {
-            apiary.openGui(serverPlayer, InteractionHand.MAIN_HAND, pos);
+        if (player instanceof ServerPlayer serverPlayer && level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
+            serverPlayer.openMenu(controller, controller::writeMenuData);
             return InteractionResult.CONSUME;
         }
 
@@ -80,21 +74,7 @@ public class MultiblockApiaryControllerBlock extends Block implements EntityBloc
     }
 
     @Override
-    public boolean hasAnalogOutputSignal(@Nonnull BlockState state) {
-        return true;
-    }
-
-    @Override
-    public int getAnalogOutputSignal(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos) {
-        BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof MultiblockApiaryBlockEntity apiary && apiary.isMultiblockFormed()) {
-            return 15;
-        }
-        return 0;
-    }
-
-    @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+    protected void createBlockStateDefinition(@Nonnull StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
         builder.add(ASSEMBLED);
     }
