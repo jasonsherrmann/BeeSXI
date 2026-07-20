@@ -1,0 +1,1 @@
+multiblock not effected by rain, light level, or time of day, not sure why

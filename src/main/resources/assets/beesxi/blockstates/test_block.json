@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "beesxi:block/test_block"
+    }
+  }
+}

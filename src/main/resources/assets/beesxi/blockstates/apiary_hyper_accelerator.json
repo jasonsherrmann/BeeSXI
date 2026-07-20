@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "assembled=false": {
+      "model": "beesxi:block/apiary_hyper_accelerator"
+    },
+    "assembled=true": {
+      "model": "beesxi:block/apiary_hyper_accelerator_assembled"
+    }
+  }
+}
