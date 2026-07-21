@@ -1,9 +1,21 @@
+Add recipes (lots of iron, existing casings from forestry, circut boards and electron tubes, sea lanterns)
 Add RF support, create Power Port
 Create good graphics, probably animated 
 confirm if logic runs while I'm in the Menu
 all settings should be saved in controller block, currently the settings reset when the multiblock is broken
 controller, analyzer and drives should be light emitting probably
+Blocks not dont drop themselves when broken, hard drives should drop themselves with data
+remove debug button presses from log
+Make the machine make noise when its running
+Make machine stop if inventories are full
+Turn off when redstone connected? 
 
+RAM calculation not as intended
+
+Store items better
+    shouldnt be able to hopper in/out
+    view items in controller
+    no stack limit like AE2 does
 
 GUI:
 Inventory tab doesnt let you view hard drive inventory
@@ -12,4 +24,11 @@ BeeSXI Controller should say something else once the multiblock is built
         page buttons overlapped tab buttons
         CPU# should just be the number and be on the other side of the chooser
         Chooser should probably not be just pushing next until you find the right one
+        Shift click chooser to add 5/10 etc
+        Shouldnt show barrier hoverover
 Add info tab or move info to not behind everything
+
+
+If RF not present, turn off RF requirement
+
+Make water a viable block for the interior for "water cooling"
