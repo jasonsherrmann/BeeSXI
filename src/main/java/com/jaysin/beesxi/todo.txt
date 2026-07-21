@@ -1,0 +1,15 @@
+Add RF support, create Power Port
+Create good graphics, probably animated 
+confirm if logic runs while I'm in the Menu
+all settings should be saved in controller block, currently the settings reset when the multiblock is broken
+controller, analyzer and drives should be light emitting probably
+
+
+GUI:
+Inventory tab doesnt let you view hard drive inventory
+BeeSXI Controller should say something else once the multiblock is built
+    Virtual Hives tab
+        page buttons overlapped tab buttons
+        CPU# should just be the number and be on the other side of the chooser
+        Chooser should probably not be just pushing next until you find the right one
+Add info tab or move info to not behind everything
