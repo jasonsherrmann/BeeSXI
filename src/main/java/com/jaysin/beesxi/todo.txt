@@ -9,6 +9,7 @@ remove debug button presses from log
 Make the machine make noise when its running
 Make machine stop if inventories are full
 Turn off when redstone connected? 
+Change so it doesn't need to be 5x5x5
 
 RAM calculation not as intended
 
