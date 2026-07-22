@@ -1,9 +1,11 @@
 package com.jaysin.beesxi.server;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
@@ -30,8 +32,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import com.jaysin.beesxi.BeeSXI;
 
 import forestry.api.apiculture.genetics.IBeeSpecies;
+import forestry.api.apiculture.ForestryActivityTypes;
 import forestry.api.core.IProduct;
 import forestry.api.genetics.IIndividual;
+import forestry.api.genetics.IGenome;
+import forestry.api.genetics.alleles.BeeChromosomes;
 import forestry.core.genetics.ItemGE;
 import forestry.core.utils.SpeciesUtil;
 import org.slf4j.Logger;
@@ -45,15 +50,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     public static final int TAB_VIRTUAL_HIVES = 1;
     public static final int TAB_INVENTORY = 2;
 
-    private static final int SIZE = 27;
+    private static final int SIZE = 1;
     private static final int MULTIBLOCK_SIZE = 5;
     private static final int LAST_INDEX = MULTIBLOCK_SIZE - 1;
     private static final int VALIDATION_INTERVAL = 20;
     private static final int PRODUCTION_INTERVAL = 200;
     private static final ResourceLocation DEFAULT_UNLOCKED_SPECIES = ResourceLocation.fromNamespaceAndPath("forestry", "forest");
+    private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL);
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
-    private final Set<ResourceLocation> analyzedSpecies = new LinkedHashSet<>();
+    private final Map<ResourceLocation, AnalyzedBeeTraits> analyzedSpecies = new LinkedHashMap<>();
     private final List<VirtualHiveConfig> virtualHives = new ArrayList<>();
     private final List<BlockPos> hddPositions = new ArrayList<>();
     private final Set<BlockPos> assembledPositions = new HashSet<>();
@@ -63,6 +69,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private int cpuCount;
     private int ramCount;
     private int activeTab = TAB_VIRTUAL_HIVES;
+    private int inventoryPage;
+    private int inventoryMaxPage;
     private long lastValidationTick;
     private long lastProductionTick;
 
@@ -76,6 +84,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 3 -> BeeSXIControllerBlockEntity.this.ramCount;
                 case 4 -> BeeSXIControllerBlockEntity.this.activeTab;
                 case 5 -> BeeSXIControllerBlockEntity.this.analyzedSpecies.size();
+                case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage;
+                case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage;
                 default -> 0;
             };
         }
@@ -88,6 +98,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 2 -> BeeSXIControllerBlockEntity.this.cpuCount = value;
                 case 3 -> BeeSXIControllerBlockEntity.this.ramCount = value;
                 case 4 -> BeeSXIControllerBlockEntity.this.activeTab = value;
+                case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage = Math.max(0, value);
+                case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage = Math.max(0, value);
                 default -> {
                 }
             }
@@ -95,7 +107,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         @Override
         public int getCount() {
-            return 6;
+            return 8;
         }
     };
 
@@ -105,7 +117,19 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     private void ensureDefaultUnlocks() {
-        this.analyzedSpecies.add(DEFAULT_UNLOCKED_SPECIES);
+        this.analyzedSpecies.putIfAbsent(DEFAULT_UNLOCKED_SPECIES, resolveSpeciesDefaults(DEFAULT_UNLOCKED_SPECIES));
+    }
+
+    private AnalyzedBeeTraits resolveSpeciesDefaults(ResourceLocation speciesId) {
+        IBeeSpecies species = SpeciesUtil.getBeeSpecies(speciesId);
+        if (species == null) {
+            return new AnalyzedBeeTraits(1.0F, null);
+        }
+
+        IGenome genome = species.createIndividual().getGenome();
+        float speed = genome.getActiveValue(BeeChromosomes.SPEED);
+        ResourceLocation activityId = genome.getActiveValue(BeeChromosomes.ACTIVITY);
+        return new AnalyzedBeeTraits(speed, activityId);
     }
 
     public void serverTick(Level level, BlockPos pos, BlockState state) {
@@ -149,8 +173,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         this.hddPositions.clear();
         this.hddPositions.addAll(result.hddPositions);
+        this.inventoryMaxPage = getMaxInventoryPage();
+        if (this.inventoryPage > this.inventoryMaxPage) {
+            this.inventoryPage = this.inventoryMaxPage;
+        }
 
-        resizeVirtualHives();
+        // Keep prior virtual hive configuration when the structure is temporarily broken.
+        // Re-size only while formed so species/instance choices survive rebuilds.
+        if (this.formed) {
+            resizeVirtualHives();
+        }
         applyAssembledState(result.structurePositions, result.valid);
 
         if (changed) {
@@ -254,7 +286,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         int maxInstances = Math.max(0, this.ramCount);
         for (VirtualHiveConfig config : this.virtualHives) {
             config.instances = Math.max(0, Math.min(config.instances, maxInstances));
-            if (config.speciesId != null && !this.analyzedSpecies.contains(config.speciesId)) {
+            if (config.speciesId != null && !this.analyzedSpecies.containsKey(config.speciesId)) {
                 config.speciesId = null;
             }
         }
@@ -303,12 +335,27 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         if (id >= 0 && id <= 2) {
             this.activeTab = id;
+            if (id == TAB_INVENTORY) {
+                this.inventoryPage = 0;
+            }
             sync();
             return true;
         }
 
         if (id == 9000) {
             tryAnalyzeOne();
+            return true;
+        }
+
+        if (id == 9100) {
+            this.inventoryPage = Math.max(0, this.inventoryPage - 1);
+            sync();
+            return true;
+        }
+
+        if (id == 9101) {
+            this.inventoryPage = Math.min(getMaxInventoryPage(), this.inventoryPage + 1);
+            sync();
             return true;
         }
 
@@ -380,8 +427,13 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         ResourceLocation id = individual.getSpecies().id();
-        if (this.analyzedSpecies.add(id)) {
-            LOGGER.info("Bee analyzed: player action at controller={}, species={}", this.worldPosition, id);
+        IGenome genome = individual.getGenome();
+        float speed = genome == null ? 1.0F : genome.getActiveValue(BeeChromosomes.SPEED);
+        ResourceLocation activityId = genome == null ? null : genome.getActiveValue(BeeChromosomes.ACTIVITY);
+
+        AnalyzedBeeTraits previous = this.analyzedSpecies.put(id, new AnalyzedBeeTraits(speed, activityId));
+        if (previous == null || previous.speed != speed || !java.util.Objects.equals(previous.activityTypeId, activityId)) {
+            LOGGER.info("Bee analyzed: controller={}, species={}, speed={}, activity={}", this.worldPosition, id, speed, activityId);
             sync();
         }
     }
@@ -402,22 +454,30 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 continue;
             }
 
+            AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+            double activityMultiplier = 1.0D;
+            if (traits != null && traits.activityTypeId != null && HALF_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
+                activityMultiplier = 0.5D;
+            }
+
             for (int i = 0; i < config.instances; i++) {
-                produceForSpecies(species, level);
+                produceForSpecies(species, level, activityMultiplier);
             }
         }
 
         sync();
     }
 
-    private void produceForSpecies(IBeeSpecies species, Level level) {
+    private void produceForSpecies(IBeeSpecies species, Level level, double activityMultiplier) {
         for (IProduct product : species.getProducts()) {
-            if (level.random.nextFloat() <= product.chance()) {
+            double adjustedChance = product.chance() * activityMultiplier;
+            if (level.random.nextDouble() <= adjustedChance) {
                 insertProducedStack(product.createStack());
             }
         }
         for (IProduct product : species.getSpecialties()) {
-            if (level.random.nextFloat() <= product.chance()) {
+            double adjustedChance = product.chance() * activityMultiplier;
+            if (level.random.nextDouble() <= adjustedChance) {
                 insertProducedStack(product.createStack());
             }
         }
@@ -437,10 +497,6 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
                 remaining = addToContainer(hdd, remaining, 0);
             }
-        }
-
-        if (!remaining.isEmpty()) {
-            remaining = addToContainer(this, remaining, 1);
         }
 
         if (!remaining.isEmpty() && this.level instanceof ServerLevel serverLevel) {
@@ -524,7 +580,29 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public List<ResourceLocation> getAnalyzedSpeciesIds() {
-        return List.copyOf(this.analyzedSpecies);
+        return List.copyOf(this.analyzedSpecies.keySet());
+    }
+
+    public float getSpeedForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return 1.0F;
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(speciesId);
+        if (traits != null) {
+            return traits.speed;
+        }
+        return resolveSpeciesDefaults(speciesId).speed;
+    }
+
+    public ResourceLocation getActivityForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return null;
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(speciesId);
+        if (traits != null) {
+            return traits.activityTypeId;
+        }
+        return resolveSpeciesDefaults(speciesId).activityTypeId;
     }
 
     public List<VirtualHiveConfig> getVirtualHives() {
@@ -537,6 +615,86 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
     public ContainerData getContainerData() {
         return this.containerData;
+    }
+
+    public int getHddNetworkSlotCount() {
+        if (this.level == null) {
+            return 0;
+        }
+
+        int total = 0;
+        for (BlockPos hddPos : this.hddPositions) {
+            if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
+                total += hdd.getContainerSize();
+            }
+        }
+        return total;
+    }
+
+    public int getInventoryPage() {
+        int max = getMaxInventoryPage();
+        if (this.inventoryPage > max) {
+            this.inventoryPage = max;
+        }
+        return this.inventoryPage;
+    }
+
+    public int getMaxInventoryPage() {
+        return Math.max(0, (getHddNetworkSlotCount() - 1) / 26);
+    }
+
+    public ItemStack getHddNetworkItem(int slot) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return ItemStack.EMPTY;
+        }
+        return ref.hdd.getItem(ref.slot);
+    }
+
+    public ItemStack removeHddNetworkItem(int slot, int amount) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack removed = ref.hdd.removeItem(ref.slot, amount);
+        if (!removed.isEmpty()) {
+            sync();
+        }
+        return removed;
+    }
+
+    public void setHddNetworkItem(int slot, ItemStack stack) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return;
+        }
+        ref.hdd.setItem(ref.slot, stack);
+        sync();
+    }
+
+    public boolean hasHddNetworkSlot(int slot) {
+        return resolveHddSlot(slot) != null;
+    }
+
+    private HddSlotRef resolveHddSlot(int slot) {
+        if (slot < 0 || this.level == null) {
+            return null;
+        }
+
+        int remaining = slot;
+        for (BlockPos hddPos : this.hddPositions) {
+            if (!(this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd)) {
+                continue;
+            }
+
+            int size = hdd.getContainerSize();
+            if (remaining < size) {
+                return new HddSlotRef(hdd, remaining);
+            }
+            remaining -= size;
+        }
+
+        return null;
     }
 
     @Override
@@ -559,10 +717,15 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         tag.putInt("CpuCount", this.cpuCount);
         tag.putInt("RamCount", this.ramCount);
         tag.putInt("ActiveTab", this.activeTab);
+        tag.putInt("InventoryPage", this.inventoryPage);
 
         ListTag analyzed = new ListTag();
-        for (ResourceLocation id : this.analyzedSpecies) {
-            analyzed.add(StringTag.valueOf(id.toString()));
+        for (Map.Entry<ResourceLocation, AnalyzedBeeTraits> entry : this.analyzedSpecies.entrySet()) {
+            CompoundTag speciesTag = new CompoundTag();
+            speciesTag.putString("Species", entry.getKey().toString());
+            speciesTag.putFloat("Speed", entry.getValue().speed);
+            speciesTag.putString("Activity", entry.getValue().activityTypeId == null ? "" : entry.getValue().activityTypeId.toString());
+            analyzed.add(speciesTag);
         }
         tag.put("AnalyzedSpecies", analyzed);
 
@@ -598,13 +761,29 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.cpuCount = tag.getInt("CpuCount");
         this.ramCount = tag.getInt("RamCount");
         this.activeTab = tag.getInt("ActiveTab");
+        this.inventoryPage = Math.max(0, tag.getInt("InventoryPage"));
 
         this.analyzedSpecies.clear();
-        ListTag analyzed = tag.getList("AnalyzedSpecies", Tag.TAG_STRING);
+        ListTag analyzed = tag.getList("AnalyzedSpecies", Tag.TAG_COMPOUND);
         for (int i = 0; i < analyzed.size(); i++) {
-            ResourceLocation id = ResourceLocation.tryParse(analyzed.getString(i));
-            if (id != null) {
-                this.analyzedSpecies.add(id);
+            CompoundTag speciesTag = analyzed.getCompound(i);
+            ResourceLocation id = ResourceLocation.tryParse(speciesTag.getString("Species"));
+            if (id == null) {
+                continue;
+            }
+
+            float speed = speciesTag.contains("Speed", Tag.TAG_FLOAT) ? speciesTag.getFloat("Speed") : 1.0F;
+            ResourceLocation activityId = ResourceLocation.tryParse(speciesTag.getString("Activity"));
+            this.analyzedSpecies.put(id, new AnalyzedBeeTraits(speed, activityId));
+        }
+
+        if (this.analyzedSpecies.isEmpty()) {
+            ListTag legacyAnalyzed = tag.getList("AnalyzedSpecies", Tag.TAG_STRING);
+            for (int i = 0; i < legacyAnalyzed.size(); i++) {
+                ResourceLocation id = ResourceLocation.tryParse(legacyAnalyzed.getString(i));
+                if (id != null) {
+                    this.analyzedSpecies.put(id, resolveSpeciesDefaults(id));
+                }
             }
         }
         ensureDefaultUnlocks();
@@ -710,6 +889,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
     }
 
+    private static final class HddSlotRef {
+        final BeeSXIHddBlockEntity hdd;
+        final int slot;
+
+        private HddSlotRef(BeeSXIHddBlockEntity hdd, int slot) {
+            this.hdd = hdd;
+            this.slot = slot;
+        }
+    }
+
     private static final class StructureValidationResult {
         final boolean valid;
         final int cpus;
@@ -729,6 +918,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         static StructureValidationResult invalid() {
             return new StructureValidationResult(false, 0, 0, false, List.of(), List.of());
+        }
+    }
+
+    private static final class AnalyzedBeeTraits {
+        final float speed;
+        final ResourceLocation activityTypeId;
+
+        private AnalyzedBeeTraits(float speed, ResourceLocation activityTypeId) {
+            this.speed = speed;
+            this.activityTypeId = activityTypeId;
         }
     }
 }

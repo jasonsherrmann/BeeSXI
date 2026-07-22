@@ -2,9 +2,7 @@ Add recipes (lots of iron, existing casings from forestry, circut boards and ele
 Add RF support, create Power Port
 Create good graphics, probably animated 
 confirm if logic runs while I'm in the Menu
-all settings should be saved in controller block, currently the settings reset when the multiblock is broken
 controller, analyzer and drives should be light emitting probably
-Blocks not dont drop themselves when broken, hard drives should drop themselves with data
 remove debug button presses from log
 Make the machine make noise when its running
 Make machine stop if inventories are full
@@ -19,7 +17,7 @@ Store items better
     no stack limit like AE2 does
 
 GUI:
-Inventory tab doesnt let you view hard drive inventory
+
 BeeSXI Controller should say something else once the multiblock is built
     Virtual Hives tab
         page buttons overlapped tab buttons

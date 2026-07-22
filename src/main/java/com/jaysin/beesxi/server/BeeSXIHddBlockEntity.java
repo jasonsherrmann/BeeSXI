@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.entity.player.Player;
@@ -85,6 +86,20 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
     @Override
     public void clearContent() {
         this.items.clear();
+        this.setChanged();
+    }
+
+    public CompoundTag toItemTag(HolderLookup.Provider provider) {
+        CompoundTag tag = new CompoundTag();
+        ContainerHelper.saveAllItems(tag, this.items, provider);
+        return tag;
+    }
+
+    public void fromItemTag(CompoundTag tag, HolderLookup.Provider provider) {
+        this.items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
+        if (tag != null && tag.contains("Items", Tag.TAG_LIST)) {
+            ContainerHelper.loadAllItems(tag, this.items, provider);
+        }
         this.setChanged();
     }
 }

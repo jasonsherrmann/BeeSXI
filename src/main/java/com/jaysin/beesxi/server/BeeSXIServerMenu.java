@@ -10,18 +10,19 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 
 import com.jaysin.beesxi.BeeSXI;
 
 public class BeeSXIServerMenu extends AbstractContainerMenu {
-    private static final int CONTROLLER_SLOT_COUNT = 27;
+    private static final int NETWORK_SLOT_COUNT = 26;
 
     private static final int ANALYZE_SLOT_INDEX = 0;
-    private static final int CONTROLLER_INV_START = 1;
-    private static final int CONTROLLER_INV_END = CONTROLLER_SLOT_COUNT;
+    private static final int NETWORK_INV_START = 1;
+    private static final int NETWORK_INV_END = NETWORK_INV_START + NETWORK_SLOT_COUNT;
 
-    private static final int PLAYER_INV_START = CONTROLLER_SLOT_COUNT;
+    private static final int PLAYER_INV_START = NETWORK_INV_END;
 
     private final BeeSXIControllerBlockEntity controller;
     private final ContainerData data;
@@ -45,19 +46,19 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     private void addControllerSlots() {
-        this.addSlot(new TabSlot(this.controller, ANALYZE_SLOT_INDEX, 22, 58, BeeSXIControllerBlockEntity.TAB_ANALYSIS));
+        this.addSlot(new TabSlot(this.controller, ANALYZE_SLOT_INDEX, 102, 8, BeeSXIControllerBlockEntity.TAB_ANALYSIS));
 
-        int index = CONTROLLER_INV_START;
+        int index = 0;
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 13; col++) {
-                this.addSlot(new TabSlot(this.controller, index++, 7 + col * 18, 45 + row * 18, BeeSXIControllerBlockEntity.TAB_INVENTORY));
+                this.addSlot(new HddTabSlot(index++, 87 + col * 18, 45 + row * 18));
             }
         }
     }
 
     private void addPlayerSlots(Inventory playerInventory) {
-        int left = 43;
-        int top = 154;
+        int left = 119;
+        int top = 184;
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
@@ -90,7 +91,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         net.minecraft.world.item.ItemStack sourceStack = sourceSlot.getItem();
         net.minecraft.world.item.ItemStack sourceCopy = sourceStack.copy();
 
-        if (index < CONTROLLER_SLOT_COUNT) {
+        if (index < PLAYER_INV_START) {
             if (!this.moveItemStackTo(sourceStack, PLAYER_INV_START, this.slots.size(), true)) {
                 return net.minecraft.world.item.ItemStack.EMPTY;
             }
@@ -100,7 +101,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
                     return ItemStack.EMPTY;
                 }
             } else if (this.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
-                if (!this.moveItemStackTo(sourceStack, CONTROLLER_INV_START, CONTROLLER_INV_END, false)) {
+                if (!this.moveItemStackTo(sourceStack, NETWORK_INV_START, NETWORK_INV_END, false)) {
                     return ItemStack.EMPTY;
                 }
             } else {
@@ -132,6 +133,56 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         }
     }
 
+    private final class HddTabSlot extends Slot {
+        private static final int DUMMY_SIZE = NETWORK_SLOT_COUNT;
+        private final int networkIndex;
+
+        private HddTabSlot(int networkIndex, int x, int y) {
+            super(new SimpleContainer(DUMMY_SIZE), networkIndex, x, y);
+            this.networkIndex = networkIndex;
+        }
+
+        @Override
+        public boolean isActive() {
+            return BeeSXIServerMenu.this.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY;
+        }
+
+        @Override
+        public ItemStack getItem() {
+            return BeeSXIServerMenu.this.controller.getHddNetworkItem(getAbsoluteIndex());
+        }
+
+        @Override
+        public boolean hasItem() {
+            return !getItem().isEmpty();
+        }
+
+        @Override
+        public void set(ItemStack stack) {
+            BeeSXIServerMenu.this.controller.setHddNetworkItem(getAbsoluteIndex(), stack);
+            this.setChanged();
+        }
+
+        @Override
+        public ItemStack remove(int amount) {
+            return BeeSXIServerMenu.this.controller.removeHddNetworkItem(getAbsoluteIndex(), amount);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return isActive();
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return isActive();
+        }
+
+        private int getAbsoluteIndex() {
+            return BeeSXIServerMenu.this.getInventoryPage() * NETWORK_SLOT_COUNT + this.networkIndex;
+        }
+    }
+
     public int getActiveTab() {
         return this.data.get(4);
     }
@@ -150,6 +201,14 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
     public boolean isFormed() {
         return this.data.get(0) == 1;
+    }
+
+    public int getInventoryPage() {
+        return this.data.get(6);
+    }
+
+    public int getInventoryMaxPage() {
+        return this.data.get(7);
     }
 
     public java.util.List<ResourceLocation> getAnalyzedSpeciesIds() {
@@ -175,5 +234,37 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
             return 0;
         }
         return hives.get(line).instances;
+    }
+
+    public float getSpeedForLine(int line) {
+        ResourceLocation species = getSpeciesForLine(line);
+        if (species == null) {
+            return 0.0F;
+        }
+        return this.controller.getSpeedForSpecies(species);
+    }
+
+    public float getSpeedForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return 0.0F;
+        }
+        return this.controller.getSpeedForSpecies(speciesId);
+    }
+
+    @Nullable
+    public ResourceLocation getActivityForLine(int line) {
+        ResourceLocation species = getSpeciesForLine(line);
+        if (species == null) {
+            return null;
+        }
+        return this.controller.getActivityForSpecies(species);
+    }
+
+    @Nullable
+    public ResourceLocation getActivityForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return null;
+        }
+        return this.controller.getActivityForSpecies(speciesId);
     }
 }

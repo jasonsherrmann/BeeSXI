@@ -22,7 +22,7 @@ import forestry.api.core.IProduct;
 import forestry.core.utils.SpeciesUtil;
 
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
-    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_server.png");
+    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu.png");
 
     private static final int VISIBLE_LINES = 6;
     private static final int LINE_HEIGHT = 18;
@@ -36,17 +36,20 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     private Button prevPageButton;
     private Button nextPageButton;
     private Button analyzeSlotButton;
+    private Button analyzedPrevButton;
+    private Button analyzedNextButton;
 
     private ItemStack hoveredStack = ItemStack.EMPTY;
     private int linePage;
+    private int analyzedPage;
 
     public BeeSXIServerScreen(BeeSXIServerMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        this.imageWidth = 248;
-        this.imageHeight = 230;
-        this.inventoryLabelY = 138;
+        this.imageWidth = 400;
+        this.imageHeight = 267;
+        this.inventoryLabelY = 155;
         this.titleLabelX = 10;
-        this.titleLabelY = 9;
+        this.titleLabelY = 5;
     }
 
     @Override
@@ -57,38 +60,57 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         int y = this.topPos;
 
         this.analysisTabButton = this.addRenderableWidget(Button.builder(Component.literal("Analysis"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_ANALYSIS))
-            .bounds(x + 10, y + 20, 74, 20)
+            .bounds(x + 8, y + 42, 68, 20)
             .build());
         this.tabButtons.add(this.analysisTabButton);
 
         this.virtualTabButton = this.addRenderableWidget(Button.builder(Component.literal("Virtual Hives"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES))
-            .bounds(x + 88, y + 20, 74, 20)
+            .bounds(x + 8, y + 66, 68, 20)
             .build());
         this.tabButtons.add(this.virtualTabButton);
 
         this.inventoryTabButton = this.addRenderableWidget(Button.builder(Component.literal("Inventory"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_INVENTORY))
-            .bounds(x + 166, y + 20, 74, 20)
+            .bounds(x + 8, y + 90, 68, 20)
             .build());
         this.tabButtons.add(this.inventoryTabButton);
 
-        this.prevPageButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> linePage = Math.max(0, linePage - 1))
-            .bounds(x + 214, y + 20, 14, 20)
+        this.prevPageButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> {
+            if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
+                linePage = Math.max(0, linePage - 1);
+            } else if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
+                pressMenuButton(9100);
+            }
+        })
+            .bounds(x + 332, y + 20, 14, 20)
             .build());
-        this.nextPageButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> linePage++)
-            .bounds(x + 228, y + 20, 14, 20)
+        this.nextPageButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> {
+            if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
+                linePage++;
+            } else if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
+                pressMenuButton(9101);
+            }
+        })
+            .bounds(x + 346, y + 20, 14, 20)
             .build());
 
         this.analyzeSlotButton = this.addRenderableWidget(Button.builder(Component.literal("Analyze"), b -> pressMenuButton(9000))
-            .bounds(x + 47, y + 58, 76, 20)
+            .bounds(x + 108, y + 8, 76, 20)
+            .build());
+
+        this.analyzedPrevButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> analyzedPage = Math.max(0, analyzedPage - 1))
+            .bounds(x + 308, y + 54, 14, 16)
+            .build());
+        this.analyzedNextButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> analyzedPage++)
+            .bounds(x + 324, y + 54, 14, 16)
             .build());
 
         for (int i = 0; i < VISIBLE_LINES; i++) {
             int rowY = y + ROW_BASE_Y + i * LINE_HEIGHT;
             int line = i;
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 0)).bounds(x + 10, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 1)).bounds(x + 28, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("-"), b -> pressLineButton(line, 2)).bounds(x + 212, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("+"), b -> pressLineButton(line, 3)).bounds(x + 230, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 0)).bounds(x + 90, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 1)).bounds(x + 108, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("-"), b -> pressLineButton(line, 2)).bounds(x + 342, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("+"), b -> pressLineButton(line, 3)).bounds(x + 360, rowY, 16, 16).build()));
         }
 
         updateWidgetVisibility();
@@ -121,11 +143,13 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         updateWidgetVisibility();
 
-        guiGraphics.blit(BG, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
+        guiGraphics.blit(BG, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
 
         int tab = this.menu.getActiveTab();
-        int stateColor = this.menu.isFormed() ? 0xA7E8B6 : 0xF0A0A0;
-        guiGraphics.drawString(this.font, Component.literal(this.menu.isFormed() ? "Structure: Formed" : "Structure: Incomplete"), this.leftPos + 10, this.topPos + this.imageHeight - 12, stateColor, false);
+        int stateColor = this.menu.isFormed() ? 0x000000 : 0xF0A0A0;
+        String stateText = this.menu.isFormed() ? "Structure: Formed" : "Structure: Incomplete";
+        int stateX = this.leftPos + this.imageWidth - this.font.width(stateText) - 8;
+        guiGraphics.drawString(this.font, stateText, stateX, this.topPos + 5, stateColor, false);
 
         if (tab == BeeSXIControllerBlockEntity.TAB_ANALYSIS) {
             renderAnalysisTab(guiGraphics, mouseX, mouseY);
@@ -142,18 +166,36 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             return;
         }
 
-        guiGraphics.drawString(this.font, "Insert bee in analyzer slot", this.leftPos + 47, this.topPos + 46, 0xD2DBE8, false);
-        guiGraphics.drawString(this.font, "Analyzed species: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 10, this.topPos + 114, 0xA0E0A0, false);
-        int maxLines = 6;
+        guiGraphics.drawString(this.font, "Insert bee in analyzer slot", this.leftPos + 108, this.topPos + 46, 0xD2DBE8, false);
+        guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 54, 0x000000, false);
+        int slotX = this.leftPos + 102;
+        int slotY = this.topPos + 8;
+        guiGraphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF8A96A8);
+        guiGraphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0xFF202A38);
+        int maxLines = 4;
         var analyzed = this.menu.getAnalyzedSpeciesIds();
-        for (int i = 0; i < Math.min(maxLines, analyzed.size()); i++) {
-            guiGraphics.drawString(this.font, trim(analyzed.get(i).toString(), 42), this.leftPos + 10, this.topPos + 126 + i * 10, 0xFFFFFF, false);
+        int maxPage = Math.max(0, (analyzed.size() - 1) / maxLines);
+        if (this.analyzedPage > maxPage) {
+            this.analyzedPage = maxPage;
+        }
+        int start = this.analyzedPage * maxLines;
+        for (int i = 0; i < maxLines; i++) {
+            int index = start + i;
+            if (index >= analyzed.size()) {
+                break;
+            }
+            ResourceLocation speciesId = analyzed.get(index);
+            float speed = this.menu.getSpeedForSpecies(speciesId);
+            ResourceLocation activityId = this.menu.getActivityForSpecies(speciesId);
+            String activity = activityId == null ? "unknown" : activityId.getPath();
+            String traitLine = trim(speciesId.toString(), 24) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + trim(activity, 10);
+            guiGraphics.drawString(this.font, traitLine, this.leftPos + 108, this.topPos + 66 + i * 10, 0x000000, false);
         }
 
         ItemStack input = this.menu.slots.get(0).getItem();
         if (!input.isEmpty()) {
-            guiGraphics.renderItem(input, this.leftPos + 22, this.topPos + 58);
-            captureHoveredStack(input, this.leftPos + 22, this.topPos + 58, mouseX, mouseY);
+            guiGraphics.renderItem(input, this.leftPos + 102, this.topPos + 8);
+            captureHoveredStack(input, this.leftPos + 102, this.topPos + 8, mouseX, mouseY);
         }
     }
 
@@ -167,7 +209,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             start = this.linePage * VISIBLE_LINES;
         }
 
-        guiGraphics.drawString(this.font, "CPU lines: " + cpuCount + "  RAM cap: " + ramCount, this.leftPos + 56, this.topPos + 49, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount*512 + "Tb ", this.leftPos + 108, this.topPos + 20, 0xA0E0A0, false);
 
         int rowBackground = 0x55262f3b;
 
@@ -179,11 +221,16 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
 
             ResourceLocation species = this.menu.getSpeciesForLine(absoluteLine);
             int instances = this.menu.getInstancesForLine(absoluteLine);
+            float speed = this.menu.getSpeedForLine(absoluteLine);
             int y = this.topPos + ROW_BASE_Y + row * LINE_HEIGHT;
 
-            guiGraphics.fill(this.leftPos + 48, y, this.leftPos + 210, y + 16, rowBackground);
-            guiGraphics.drawString(this.font, "CPU " + (absoluteLine + 1), this.leftPos + 50, y + 4, 0xFFFFFF, false);
-            guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 188, y + 4, 0xFFFF99, false);
+            guiGraphics.fill(this.leftPos + 130, y, this.leftPos + 398, y + 16, rowBackground);
+            guiGraphics.drawString(this.font, "CPU " + (absoluteLine + 1), this.leftPos + 190, y + 4, 0x000000, false);
+            if (species != null) {
+                guiGraphics.drawString(this.font, trim(species.getPath(), 10), this.leftPos + 228, y + 4, 0x000000, false);
+            }
+            guiGraphics.drawString(this.font, "SPD " + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 270, y + 4, 0xA7E8B6, false);
+            guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 387, y + 4, 0xFFFF99, false);
 
             renderSpeciesRowIcons(guiGraphics, species, y, mouseX, mouseY);
         }
@@ -206,19 +253,15 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             beeIcon = new ItemStack(Items.BARRIER);
         }
 
-        int beeX = this.leftPos + 100;
+        int beeX = this.leftPos + 130;
         guiGraphics.renderItem(beeIcon, beeX, rowY);
         captureHoveredStack(beeIcon, beeX, rowY, mouseX, mouseY);
 
         for (int i = 0; i < Math.min(3, productIcons.size()); i++) {
             ItemStack icon = productIcons.get(i);
-            int x = this.leftPos + 120 + i * 18;
+            int x = this.leftPos + 148 + i * 18;
             guiGraphics.renderItem(icon, x, rowY);
             captureHoveredStack(icon, x, rowY, mouseX, mouseY);
-        }
-
-        if (speciesId != null) {
-            guiGraphics.drawString(this.font, trim(speciesId.getPath(), 8), this.leftPos + 50, rowY - 9, 0xB9C8DC, false);
         }
     }
 
@@ -254,8 +297,11 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryTab(GuiGraphics guiGraphics) {
-        guiGraphics.drawString(this.font, "Storage Inventory", this.leftPos + 10, this.topPos + 49, 0xA0E0A0, false);
-        guiGraphics.drawString(this.font, "26 shared slots (output fallback when HDDs are full)", this.leftPos + 10, this.topPos + 62, 0xD2DBE8, false);
+        guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 100, this.topPos + 25, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "Slots are linked to HDD blocks in this multiblock", this.leftPos + 10, this.topPos + 62, 0x000000, false);
+        int page = this.menu.getInventoryPage() + 1;
+        int maxPage = this.menu.getInventoryMaxPage() + 1;
+        guiGraphics.drawString(this.font, "Page " + page + " / " + maxPage, this.leftPos + 250, this.topPos + 25, 0x000000, false);
     }
 
     private void updateWidgetVisibility() {
@@ -278,16 +324,26 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         boolean virtualActive = tab == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES;
 
         if (this.prevPageButton != null) {
-            this.prevPageButton.visible = virtualActive;
-            this.prevPageButton.active = this.linePage > 0;
+            boolean inventoryActive = tab == BeeSXIControllerBlockEntity.TAB_INVENTORY;
+            this.prevPageButton.visible = virtualActive || inventoryActive;
+            this.prevPageButton.active = virtualActive ? this.linePage > 0 : this.menu.getInventoryPage() > 0;
         }
         if (this.nextPageButton != null) {
-            this.nextPageButton.visible = virtualActive;
-            this.nextPageButton.active = true;
+            boolean inventoryActive = tab == BeeSXIControllerBlockEntity.TAB_INVENTORY;
+            this.nextPageButton.visible = virtualActive || inventoryActive;
+            this.nextPageButton.active = virtualActive ? true : this.menu.getInventoryPage() < this.menu.getInventoryMaxPage();
         }
         if (this.analyzeSlotButton != null) {
             this.analyzeSlotButton.visible = analysisActive;
             this.analyzeSlotButton.active = analysisActive && this.menu.hasAnalyzerTab();
+        }
+        if (this.analyzedPrevButton != null && this.analyzedNextButton != null) {
+            int analyzedCount = this.menu.getAnalyzedSpeciesIds().size();
+            int maxAnalyzedPage = Math.max(0, (analyzedCount - 1) / 4);
+            this.analyzedPrevButton.visible = analysisActive;
+            this.analyzedPrevButton.active = analysisActive && this.analyzedPage > 0;
+            this.analyzedNextButton.visible = analysisActive;
+            this.analyzedNextButton.active = analysisActive && this.analyzedPage < maxAnalyzedPage;
         }
 
         for (int idx = 0; idx < this.lineButtons.size(); idx++) {
