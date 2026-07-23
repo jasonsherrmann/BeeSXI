@@ -7,11 +7,11 @@ Instead of running physical apiaries, BeeSXI lets you analyze bees, unlock speci
 
 ## Features
 
-- 5x5x5 BeeSXI Server multiblock
+- BeeSXI Server multiblock
 - Controller can be placed on any non-edge outer block position
 - Required parts validation (CPU, RAM, HDD) with assembled-state visuals
 - Molecular Analyzer integration for species unlocks
-- Virtual hive lines tied to CPU count
+- Virtual hive tied to CPU count
 - Per-line instance limits tied to RAM capacity
 - Product generation based on species products and specialties
 - HDD-backed output storage with controller inventory fallback
@@ -19,8 +19,8 @@ Instead of running physical apiaries, BeeSXI lets you analyze bees, unlock speci
 
 ## Multiblock Rules (Current)
 
-- Structure size must be exactly 5x5x5
-- All positions in the 5x5x5 volume must be BeeSXI parts or controller
+- Structure size must be 3-15 blocks in height, width, and depth
+- All positions in the volume must be BeeSXI parts or controller
 - Edges and corners must be casing
 - Controller must be on an outside face and not on an edge/corner
 - At least 1 CPU, 1 RAM, and 1 HDD are required
@@ -28,8 +28,8 @@ Instead of running physical apiaries, BeeSXI lets you analyze bees, unlock speci
 ## Dependencies
 
 - Minecraft 1.21.1
-- NeoForge (see version in gradle.properties)
-- Forestry: Community Edition (runtime dependency provided by your modpack/instance)
+- NeoForge 
+- Forestry: Community Edition 
 
 
 ## License

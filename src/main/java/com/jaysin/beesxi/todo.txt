@@ -1,15 +1,19 @@
+========================
+Needed for MVP
+========================
+
 Add recipes (lots of iron, existing casings from forestry, circut boards and electron tubes, sea lanterns)
-controller, analyzer and drives should be light emitting probably
 remove debug button presses from log
 Make machine stop if inventories are full
 Balance the production values
 Make sure production percentages are accurate
-Allow more than one analyzer?
 Export from analysis tab to some item that can be analyzed quickly by another analyzer?
 Make a debug item that unlocks all species
 make multiblock blocks blast proof
 
-
+======================
+Broken
+======================
 
 BeeSXI Controller should say something else once the multiblock is built
     Virtual Hives tab
@@ -44,3 +48,5 @@ Analyzer shows what bee is being analyzed (would need to be a block entity with 
 Make the machine make noise when its running
 Turn off when redstone connected? new block, and a stop button in the gui
 Additional tiers of CPU/RAM/HDD
+controller, analyzer and drives should be light emitting probably
+Allow more than one analyzer?
