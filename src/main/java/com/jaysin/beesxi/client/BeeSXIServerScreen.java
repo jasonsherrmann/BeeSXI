@@ -133,6 +133,9 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         this.hoveredStack = ItemStack.EMPTY;
         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
+        if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
+            renderInventoryCountOverlays(guiGraphics);
+        }
         if (!this.hoveredStack.isEmpty()) {
             guiGraphics.renderTooltip(this.font, this.hoveredStack, mouseX, mouseY);
         }
@@ -151,6 +154,11 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         int stateX = this.leftPos + this.imageWidth - this.font.width(stateText) - 8;
         guiGraphics.drawString(this.font, stateText, stateX, this.topPos + 5, stateColor, false);
 
+        long powerStored = this.menu.getPowerStoredForUi();
+        long powerCap = this.menu.getPowerCapacityForUi();
+        String powerText = "Power: " + powerStored + " / " + powerCap + " RF";
+        guiGraphics.drawString(this.font, powerText, this.leftPos + 108, this.topPos + 34, 0x000000, false);
+
         if (tab == BeeSXIControllerBlockEntity.TAB_ANALYSIS) {
             renderAnalysisTab(guiGraphics, mouseX, mouseY);
         } else if (tab == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
@@ -168,6 +176,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
 
         guiGraphics.drawString(this.font, "Insert bee in analyzer slot", this.leftPos + 108, this.topPos + 46, 0xD2DBE8, false);
         guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 54, 0x000000, false);
+        String analyzeProgressText = this.menu.isAnalyzing() ? "Analysis Progress: " + this.menu.getAnalyzeProgressPercent() + "%" : "Analysis Progress: Ready";
+        guiGraphics.drawString(this.font, analyzeProgressText, this.leftPos + 108, this.topPos + 64, 0x000000, false);
         int slotX = this.leftPos + 102;
         int slotY = this.topPos + 8;
         guiGraphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF8A96A8);
@@ -189,7 +199,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             ResourceLocation activityId = this.menu.getActivityForSpecies(speciesId);
             String activity = activityId == null ? "unknown" : activityId.getPath();
             String traitLine = trim(speciesId.toString(), 24) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + trim(activity, 10);
-            guiGraphics.drawString(this.font, traitLine, this.leftPos + 108, this.topPos + 66 + i * 10, 0x000000, false);
+            guiGraphics.drawString(this.font, traitLine, this.leftPos + 108, this.topPos + 76 + i * 10, 0x000000, false);
         }
 
         ItemStack input = this.menu.slots.get(0).getItem();
@@ -297,11 +307,32 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryTab(GuiGraphics guiGraphics) {
-        guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 100, this.topPos + 25, 0xA0E0A0, false);
-        guiGraphics.drawString(this.font, "Slots are linked to HDD blocks in this multiblock", this.leftPos + 10, this.topPos + 62, 0x000000, false);
+        guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 20, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "Slots are linked to HDD blocks in this multiblock", this.leftPos + 108, this.topPos + 98, 0x000000, false);
         int page = this.menu.getInventoryPage() + 1;
         int maxPage = this.menu.getInventoryMaxPage() + 1;
         guiGraphics.drawString(this.font, "Page " + page + " / " + maxPage, this.leftPos + 250, this.topPos + 25, 0x000000, false);
+    }
+
+    private void renderInventoryCountOverlays(GuiGraphics guiGraphics) {
+        BeeSXIServerMenu serverMenu = (BeeSXIServerMenu) this.menu;
+        int page = this.menu.getInventoryPage();
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                int slotIndex = page * 27 + row * 9 + col;
+                ItemStack stack = serverMenu.getHddNetworkItem(slotIndex);
+                if (stack.isEmpty() || stack.getCount() <= 1) {
+                    continue;
+                }
+
+                int x = this.leftPos + 123 + col * 18;
+                int y = this.topPos + 45 + row * 18;
+                String countText = Integer.toString(stack.getCount());
+                int textX = x + 18 - this.font.width(countText);
+                int textY = y + 9;
+                guiGraphics.drawString(this.font, countText, textX, textY, 0x000000, false);
+            }
+        }
     }
 
     private void updateWidgetVisibility() {
@@ -371,4 +402,5 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         }
         return value.substring(0, maxChars - 3) + "...";
     }
+
 }

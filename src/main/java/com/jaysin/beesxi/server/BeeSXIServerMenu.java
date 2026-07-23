@@ -16,7 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import com.jaysin.beesxi.BeeSXI;
 
 public class BeeSXIServerMenu extends AbstractContainerMenu {
-    private static final int NETWORK_SLOT_COUNT = 26;
+    private static final int NETWORK_SLOT_COUNT = 27;
 
     private static final int ANALYZE_SLOT_INDEX = 0;
     private static final int NETWORK_INV_START = 1;
@@ -49,9 +49,9 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         this.addSlot(new TabSlot(this.controller, ANALYZE_SLOT_INDEX, 102, 8, BeeSXIControllerBlockEntity.TAB_ANALYSIS));
 
         int index = 0;
-        for (int row = 0; row < 2; row++) {
-            for (int col = 0; col < 13; col++) {
-                this.addSlot(new HddTabSlot(index++, 87 + col * 18, 45 + row * 18));
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                this.addSlot(new HddTabSlot(index++, 123 + col * 18, 45 + row * 18));
             }
         }
     }
@@ -165,12 +165,12 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
         @Override
         public ItemStack remove(int amount) {
-            return BeeSXIServerMenu.this.controller.removeHddNetworkItem(getAbsoluteIndex(), amount);
+            return BeeSXIServerMenu.this.controller.extractHddNetworkItem(getAbsoluteIndex(), amount);
         }
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return isActive();
+            return false;
         }
 
         @Override
@@ -211,6 +211,22 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.data.get(7);
     }
 
+    public boolean isAnalyzing() {
+        return this.data.get(8) == 1;
+    }
+
+    public int getAnalyzeProgressPercent() {
+        return this.data.get(9);
+    }
+
+    public long getPowerStoredForUi() {
+        return this.controller.getPowerStoredForUi();
+    }
+
+    public long getPowerCapacityForUi() {
+        return this.controller.getPowerCapacityForUi();
+    }
+
     public java.util.List<ResourceLocation> getAnalyzedSpeciesIds() {
         return this.controller.getAnalyzedSpeciesIds();
     }
@@ -218,6 +234,31 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     public java.util.List<BeeSXIControllerBlockEntity.VirtualHiveConfig> getVirtualHives() {
         return this.controller.getVirtualHives();
     }
+
+    public ItemStack getHddNetworkItem(int slot) {
+        return this.controller.getHddNetworkItem(slot);
+    }
+
+    public ItemStack extractHddNetworkItem(int slot, int amount) {
+        return this.controller.extractHddNetworkItem(slot, amount);
+    }
+
+    public int getHddBytesUsed(int slot) {
+        return this.controller.getHddBytesUsed(slot);
+    }
+
+    public int getHddBytesTotal(int slot) {
+        return this.controller.getHddBytesTotal(slot);
+    }
+
+    public int getHddTypesUsed(int slot) {
+        return this.controller.getHddTypesUsed(slot);
+    }
+
+    public int getHddTypesMax(int slot) {
+        return this.controller.getHddTypesMax(slot);
+    }
+
 
     @Nullable
     public ResourceLocation getSpeciesForLine(int line) {

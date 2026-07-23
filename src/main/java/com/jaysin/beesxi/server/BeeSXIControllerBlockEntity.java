@@ -3,10 +3,11 @@ package com.jaysin.beesxi.server;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -51,17 +52,31 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     public static final int TAB_INVENTORY = 2;
 
     private static final int SIZE = 1;
-    private static final int MULTIBLOCK_SIZE = 5;
-    private static final int LAST_INDEX = MULTIBLOCK_SIZE - 1;
+    private static final int NETWORK_SLOT_PAGE_SIZE = 27;
+    private static final int MIN_MULTIBLOCK_DIM = 3;
+    private static final int MAX_MULTIBLOCK_DIM = 15;
     private static final int VALIDATION_INTERVAL = 20;
     private static final int PRODUCTION_INTERVAL = 200;
+    private static final int ANALYZE_DURATION_TICKS = 20 * 60 * 5;
+    private static final long ANALYZE_RF_COST = 10_000_000L;
+    private static final long RFPerCycle = 1_000L;
+    private static final long RF_PER_TICK_CPU = 0L;
+    private static final long RF_PER_TICK_RAM = 0L;
+    private static final long RF_PER_TICK_CONTROLLER = 0L;
     private static final ResourceLocation DEFAULT_UNLOCKED_SPECIES = ResourceLocation.fromNamespaceAndPath("forestry", "forest");
     private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL);
+    private static final int[][] CARDINAL_DIRECTIONS = {
+        {1, 0, 0}, {-1, 0, 0},
+        {0, 1, 0}, {0, -1, 0},
+        {0, 0, 1}, {0, 0, -1}
+    };
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
     private final Map<ResourceLocation, AnalyzedBeeTraits> analyzedSpecies = new LinkedHashMap<>();
     private final List<VirtualHiveConfig> virtualHives = new ArrayList<>();
     private final List<BlockPos> hddPositions = new ArrayList<>();
+    private final List<BlockPos> powerSupplyPositions = new ArrayList<>();
+    private final List<BlockPos> batteryPositions = new ArrayList<>();
     private final Set<BlockPos> assembledPositions = new HashSet<>();
 
     private boolean formed;
@@ -71,6 +86,18 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private int activeTab = TAB_VIRTUAL_HIVES;
     private int inventoryPage;
     private int inventoryMaxPage;
+    private boolean analyzing;
+    private int analyzeTicksRemaining;
+    private ResourceLocation pendingAnalyzeSpeciesId;
+    private float pendingAnalyzeSpeed;
+    private ResourceLocation pendingAnalyzeActivityId;
+    private long lastSyncedPowerStored = Long.MIN_VALUE;
+    private long lastSyncedPowerCapacity = Long.MIN_VALUE;
+    private int lastSyncedAnalyzeProgress = Integer.MIN_VALUE;
+    private boolean lastSyncedAnalyzing;
+    private long uiPowerStored;
+    private long uiPowerCapacity;
+    private int uiAnalyzeProgress = 100;
     private long lastValidationTick;
     private long lastProductionTick;
 
@@ -86,6 +113,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 5 -> BeeSXIControllerBlockEntity.this.analyzedSpecies.size();
                 case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage;
                 case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage;
+                case 8 -> BeeSXIControllerBlockEntity.this.analyzing ? 1 : 0;
+                case 9 -> BeeSXIControllerBlockEntity.this.uiAnalyzeProgress;
+                case 10 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiPowerStored);
+                case 11 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiPowerCapacity);
                 default -> 0;
             };
         }
@@ -100,6 +131,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 4 -> BeeSXIControllerBlockEntity.this.activeTab = value;
                 case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage = Math.max(0, value);
                 case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage = Math.max(0, value);
+                case 8 -> BeeSXIControllerBlockEntity.this.analyzing = value != 0;
+                case 9 -> BeeSXIControllerBlockEntity.this.uiAnalyzeProgress = value;
+                case 10 -> BeeSXIControllerBlockEntity.this.uiPowerStored = Math.max(0, value);
+                case 11 -> BeeSXIControllerBlockEntity.this.uiPowerCapacity = Math.max(0, value);
                 default -> {
                 }
             }
@@ -107,7 +142,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         @Override
         public int getCount() {
-            return 8;
+            return 12;
         }
     };
 
@@ -147,10 +182,25 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             return;
         }
 
+        long perTickCost = RF_PER_TICK_CONTROLLER
+            + (long) this.cpuCount * RF_PER_TICK_CPU
+            + (long) this.ramCount * RF_PER_TICK_RAM;
+        if (perTickCost > 0 && !consumeEnergy(perTickCost, false)) {
+            return;
+        }
+
+        chargeBatteriesFromSupplies();
+
+        if (this.analyzing) {
+            tickAnalyzeProcess();
+        }
+
         if (gameTime - this.lastProductionTick >= PRODUCTION_INTERVAL) {
             this.lastProductionTick = gameTime;
             produceVirtualHiveDrops();
         }
+
+        syncIfUiChanged();
     }
 
     private void validateStructure() {
@@ -173,6 +223,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         this.hddPositions.clear();
         this.hddPositions.addAll(result.hddPositions);
+        this.powerSupplyPositions.clear();
+        this.powerSupplyPositions.addAll(result.powerSupplyPositions);
+        this.batteryPositions.clear();
+        this.batteryPositions.addAll(result.batteryPositions);
         this.inventoryMaxPage = getMaxInventoryPage();
         if (this.inventoryPage > this.inventoryMaxPage) {
             this.inventoryPage = this.inventoryMaxPage;
@@ -191,37 +245,87 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     private StructureValidationResult findValidStructure(Level level) {
-        for (int lx = 0; lx < MULTIBLOCK_SIZE; lx++) {
-            for (int ly = 0; ly < MULTIBLOCK_SIZE; ly++) {
-                for (int lz = 0; lz < MULTIBLOCK_SIZE; lz++) {
-                    if (!isNonEdgeOuter(lx, ly, lz)) {
-                        continue;
-                    }
+        Set<BlockPos> component = collectConnectedStructureComponent(level);
+        if (component.isEmpty()) {
+            return StructureValidationResult.invalid();
+        }
 
-                    BlockPos minPos = this.worldPosition.offset(-lx, -ly, -lz);
-                    StructureValidationResult candidate = validateAt(level, minPos);
-                    if (candidate.valid) {
-                        return candidate;
-                    }
+        BlockPos min = null;
+        BlockPos max = null;
+        for (BlockPos pos : component) {
+            if (min == null) {
+                min = pos;
+                max = pos;
+                continue;
+            }
+            min = new BlockPos(Math.min(min.getX(), pos.getX()), Math.min(min.getY(), pos.getY()), Math.min(min.getZ(), pos.getZ()));
+            max = new BlockPos(Math.max(max.getX(), pos.getX()), Math.max(max.getY(), pos.getY()), Math.max(max.getZ(), pos.getZ()));
+        }
+
+        int sizeX = max.getX() - min.getX() + 1;
+        int sizeY = max.getY() - min.getY() + 1;
+        int sizeZ = max.getZ() - min.getZ() + 1;
+        if (sizeX < MIN_MULTIBLOCK_DIM || sizeX > MAX_MULTIBLOCK_DIM
+            || sizeY < MIN_MULTIBLOCK_DIM || sizeY > MAX_MULTIBLOCK_DIM
+            || sizeZ < MIN_MULTIBLOCK_DIM || sizeZ > MAX_MULTIBLOCK_DIM) {
+            return StructureValidationResult.invalid();
+        }
+
+        return validateAt(level, min, sizeX, sizeY, sizeZ);
+    }
+
+    private Set<BlockPos> collectConnectedStructureComponent(Level level) {
+        Set<BlockPos> visited = new HashSet<>();
+        Deque<BlockPos> queue = new ArrayDeque<>();
+        queue.add(this.worldPosition);
+        visited.add(this.worldPosition);
+
+        while (!queue.isEmpty()) {
+            BlockPos current = queue.removeFirst();
+            for (int[] direction : CARDINAL_DIRECTIONS) {
+                BlockPos next = current.offset(direction[0], direction[1], direction[2]);
+                if (visited.contains(next)) {
+                    continue;
+                }
+
+                int dx = Math.abs(next.getX() - this.worldPosition.getX());
+                int dy = Math.abs(next.getY() - this.worldPosition.getY());
+                int dz = Math.abs(next.getZ() - this.worldPosition.getZ());
+                if (dx > MAX_MULTIBLOCK_DIM || dy > MAX_MULTIBLOCK_DIM || dz > MAX_MULTIBLOCK_DIM) {
+                    continue;
+                }
+
+                BlockState state = level.getBlockState(next);
+                boolean isStructureBlock = state.getBlock() instanceof BeeSXIControllerBlock || state.getBlock() instanceof BeeSXIPartBlock;
+                if (!isStructureBlock) {
+                    continue;
+                }
+
+                visited.add(next);
+                queue.addLast(next);
+                if (visited.size() > MAX_MULTIBLOCK_DIM * MAX_MULTIBLOCK_DIM * MAX_MULTIBLOCK_DIM) {
+                    return Set.of();
                 }
             }
         }
 
-        return StructureValidationResult.invalid();
+        return visited;
     }
 
-    private StructureValidationResult validateAt(Level level, BlockPos minPos) {
+    private StructureValidationResult validateAt(Level level, BlockPos minPos, int sizeX, int sizeY, int sizeZ) {
         int cpus = 0;
         int rams = 0;
         int analyzers = 0;
         int controllerCount = 0;
 
         List<BlockPos> foundHdds = new ArrayList<>();
-        List<BlockPos> structurePositions = new ArrayList<>(MULTIBLOCK_SIZE * MULTIBLOCK_SIZE * MULTIBLOCK_SIZE);
+        List<BlockPos> foundPowerSupplies = new ArrayList<>();
+        List<BlockPos> foundBatteries = new ArrayList<>();
+        List<BlockPos> structurePositions = new ArrayList<>(sizeX * sizeY * sizeZ);
 
-        for (int x = 0; x < MULTIBLOCK_SIZE; x++) {
-            for (int y = 0; y < MULTIBLOCK_SIZE; y++) {
-                for (int z = 0; z < MULTIBLOCK_SIZE; z++) {
+        for (int x = 0; x < sizeX; x++) {
+            for (int y = 0; y < sizeY; y++) {
+                for (int z = 0; z < sizeZ; z++) {
                     BlockPos scanPos = minPos.offset(x, y, z);
                     BlockState scanState = level.getBlockState(scanPos);
                     structurePositions.add(scanPos.immutable());
@@ -239,9 +343,9 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                     }
 
                     BeeSXIPartType partType = partBlock.getPartType();
-                    int boundaryAxes = (x == 0 || x == LAST_INDEX ? 1 : 0)
-                        + (y == 0 || y == LAST_INDEX ? 1 : 0)
-                        + (z == 0 || z == LAST_INDEX ? 1 : 0);
+                    int boundaryAxes = (x == 0 || x == sizeX - 1 ? 1 : 0)
+                        + (y == 0 || y == sizeY - 1 ? 1 : 0)
+                        + (z == 0 || z == sizeZ - 1 ? 1 : 0);
                     boolean isEdgeOrCorner = boundaryAxes >= 2;
                     if (isEdgeOrCorner && partType != BeeSXIPartType.CASING) {
                         return StructureValidationResult.invalid();
@@ -251,6 +355,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                         case CPU -> cpus++;
                         case RAM -> rams++;
                         case HDD -> foundHdds.add(scanPos.immutable());
+                        case POWER_SUPPLY -> foundPowerSupplies.add(scanPos.immutable());
+                        case BATTERY -> foundBatteries.add(scanPos.immutable());
                         case MOLECULAR_ANALYZER -> analyzers++;
                         case CASING -> {
                         }
@@ -259,19 +365,23 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             }
         }
 
+        int controllerBoundaryAxes = (this.worldPosition.getX() == minPos.getX() || this.worldPosition.getX() == minPos.getX() + sizeX - 1 ? 1 : 0)
+            + (this.worldPosition.getY() == minPos.getY() || this.worldPosition.getY() == minPos.getY() + sizeY - 1 ? 1 : 0)
+            + (this.worldPosition.getZ() == minPos.getZ() || this.worldPosition.getZ() == minPos.getZ() + sizeZ - 1 ? 1 : 0);
+        if (controllerBoundaryAxes != 1) {
+            return StructureValidationResult.invalid();
+        }
+
         boolean valid = controllerCount == 1 && cpus >= 1 && rams >= 1 && !foundHdds.isEmpty();
         if (!valid) {
             return StructureValidationResult.invalid();
         }
 
-        return new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, structurePositions);
-    }
+        if (foundPowerSupplies.isEmpty() || foundBatteries.isEmpty()) {
+            return StructureValidationResult.invalid();
+        }
 
-    private static boolean isNonEdgeOuter(int x, int y, int z) {
-        int boundaryAxes = (x == 0 || x == LAST_INDEX ? 1 : 0)
-            + (y == 0 || y == LAST_INDEX ? 1 : 0)
-            + (z == 0 || z == LAST_INDEX ? 1 : 0);
-        return boundaryAxes == 1;
+        return new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, structurePositions);
     }
 
     private void resizeVirtualHives() {
@@ -283,11 +393,38 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             this.virtualHives.remove(this.virtualHives.size() - 1);
         }
 
-        int maxInstances = Math.max(0, this.ramCount);
         for (VirtualHiveConfig config : this.virtualHives) {
-            config.instances = Math.max(0, Math.min(config.instances, maxInstances));
+            config.instances = Math.max(0, config.instances);
             if (config.speciesId != null && !this.analyzedSpecies.containsKey(config.speciesId)) {
                 config.speciesId = null;
+            }
+        }
+
+        enforceTotalRamLimit();
+    }
+
+    private int getTotalInstances() {
+        int total = 0;
+        for (VirtualHiveConfig config : this.virtualHives) {
+            total += Math.max(0, config.instances);
+        }
+        return total;
+    }
+
+    private void enforceTotalRamLimit() {
+        int maxTotal = Math.max(0, this.ramCount);
+        int total = getTotalInstances();
+        if (total <= maxTotal) {
+            return;
+        }
+
+        int overflow = total - maxTotal;
+        for (int i = this.virtualHives.size() - 1; i >= 0 && overflow > 0; i--) {
+            VirtualHiveConfig config = this.virtualHives.get(i);
+            int reduce = Math.min(config.instances, overflow);
+            if (reduce > 0) {
+                config.instances -= reduce;
+                overflow -= reduce;
             }
         }
     }
@@ -343,7 +480,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         if (id == 9000) {
-            tryAnalyzeOne();
+            startAnalyzeOne();
             return true;
         }
 
@@ -406,13 +543,24 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     private void changeInstances(int line, int delta) {
-        int max = Math.max(0, this.ramCount);
         VirtualHiveConfig config = this.virtualHives.get(line);
-        config.instances = Math.max(0, Math.min(max, config.instances + delta));
+        if (delta < 0) {
+            config.instances = Math.max(0, config.instances + delta);
+            return;
+        }
+
+        if (delta > 0) {
+            int maxTotal = Math.max(0, this.ramCount);
+            int remaining = Math.max(0, maxTotal - getTotalInstances());
+            int add = Math.min(remaining, delta);
+            if (add > 0) {
+                config.instances += add;
+            }
+        }
     }
 
-    private void tryAnalyzeOne() {
-        if (!this.hasAnalyzer) {
+    private void startAnalyzeOne() {
+        if (!this.hasAnalyzer || this.analyzing || !this.formed) {
             return;
         }
 
@@ -431,11 +579,42 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         float speed = genome == null ? 1.0F : genome.getActiveValue(BeeChromosomes.SPEED);
         ResourceLocation activityId = genome == null ? null : genome.getActiveValue(BeeChromosomes.ACTIVITY);
 
-        AnalyzedBeeTraits previous = this.analyzedSpecies.put(id, new AnalyzedBeeTraits(speed, activityId));
-        if (previous == null || previous.speed != speed || !java.util.Objects.equals(previous.activityTypeId, activityId)) {
-            LOGGER.info("Bee analyzed: controller={}, species={}, speed={}, activity={}", this.worldPosition, id, speed, activityId);
-            sync();
+        if (!consumeEnergy(ANALYZE_RF_COST, true)) {
+            return;
         }
+        consumeEnergy(ANALYZE_RF_COST, false);
+
+        this.pendingAnalyzeSpeciesId = id;
+        this.pendingAnalyzeSpeed = speed;
+        this.pendingAnalyzeActivityId = activityId;
+        this.analyzing = true;
+        this.analyzeTicksRemaining = ANALYZE_DURATION_TICKS;
+        sync();
+    }
+
+    private void tickAnalyzeProcess() {
+        if (!this.analyzing || !this.formed) {
+            return;
+        }
+
+        this.analyzeTicksRemaining = Math.max(0, this.analyzeTicksRemaining - 1);
+        if (this.analyzeTicksRemaining > 0) {
+            return;
+        }
+
+        if (this.pendingAnalyzeSpeciesId != null) {
+            AnalyzedBeeTraits previous = this.analyzedSpecies.put(this.pendingAnalyzeSpeciesId, new AnalyzedBeeTraits(this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId));
+            if (previous == null || previous.speed != this.pendingAnalyzeSpeed || !java.util.Objects.equals(previous.activityTypeId, this.pendingAnalyzeActivityId)) {
+                LOGGER.info("Bee analyzed: controller={}, species={}, speed={}, activity={}", this.worldPosition, this.pendingAnalyzeSpeciesId, this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId);
+            }
+        }
+
+        this.pendingAnalyzeSpeciesId = null;
+        this.pendingAnalyzeActivityId = null;
+        this.pendingAnalyzeSpeed = 0.0F;
+        this.analyzing = false;
+        this.analyzeTicksRemaining = 0;
+        sync();
     }
 
     private void produceVirtualHiveDrops() {
@@ -443,6 +622,11 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         if (level == null || !this.formed) {
             return;
         }
+
+        if (!consumeEnergy(RFPerCycle, true)) {
+            return;
+        }
+        consumeEnergy(RFPerCycle, false);
 
         for (VirtualHiveConfig config : this.virtualHives) {
             if (config.speciesId == null || config.instances <= 0) {
@@ -458,7 +642,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             double activityMultiplier = 1.0D;
             if (traits != null && traits.activityTypeId != null && HALF_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
                 activityMultiplier = 0.5D;
-            }
+            } //Fix this code to make it more intuative
 
             for (int i = 0; i < config.instances; i++) {
                 produceForSpecies(species, level, activityMultiplier);
@@ -495,7 +679,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 break;
             }
             if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
-                remaining = addToContainer(hdd, remaining, 0);
+                remaining = hdd.insertStack(remaining);
             }
         }
 
@@ -551,11 +735,159 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         return remaining;
     }
 
+    private boolean consumeEnergy(long rf, boolean simulate) {
+        if (rf <= 0) {
+            return true;
+        }
+
+        long remaining = rf;
+        if (this.level == null) {
+            return false;
+        }
+
+        for (BlockPos powerPos : this.batteryPositions) {
+            if (!(this.level.getBlockEntity(powerPos) instanceof BeeSXIPowerSupplyBlockEntity power)) {
+                continue;
+            }
+            int removed = power.extractEnergy((int) Math.min(Integer.MAX_VALUE, remaining), simulate);
+            remaining -= removed;
+            if (remaining <= 0) {
+                return true;
+            }
+        }
+
+        for (BlockPos powerPos : this.powerSupplyPositions) {
+            if (!(this.level.getBlockEntity(powerPos) instanceof BeeSXIPowerSupplyBlockEntity power)) {
+                continue;
+            }
+            int removed = power.extractEnergy((int) Math.min(Integer.MAX_VALUE, remaining), simulate);
+            remaining -= removed;
+            if (remaining <= 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void chargeBatteriesFromSupplies() {
+        if (this.level == null || !this.formed) {
+            return;
+        }
+
+        long transferRemaining = 10_000L;
+        if (transferRemaining <= 0) {
+            return;
+        }
+
+        for (BlockPos batteryPos : this.batteryPositions) {
+            if (transferRemaining <= 0) {
+                break;
+            }
+            if (!(this.level.getBlockEntity(batteryPos) instanceof BeeSXIPowerSupplyBlockEntity battery)) {
+                continue;
+            }
+
+            int batteryRoom = battery.getMaxEnergyStored() - battery.getEnergyStored();
+            if (batteryRoom <= 0) {
+                continue;
+            }
+
+            int toBattery = (int) Math.min(transferRemaining, batteryRoom);
+            int movedTotal = 0;
+            for (BlockPos supplyPos : this.powerSupplyPositions) {
+                if (toBattery <= 0) {
+                    break;
+                }
+                if (!(this.level.getBlockEntity(supplyPos) instanceof BeeSXIPowerSupplyBlockEntity supply)) {
+                    continue;
+                }
+
+                int pulled = supply.extractEnergy(toBattery, false);
+                if (pulled <= 0) {
+                    continue;
+                }
+                int accepted = battery.receiveEnergy(pulled, false);
+                if (accepted < pulled) {
+                    supply.receiveEnergy(pulled - accepted, false);
+                }
+                movedTotal += accepted;
+                toBattery -= accepted;
+            }
+            transferRemaining -= movedTotal;
+        }
+    }
+
+    private long getTotalPowerStored() {
+        if (this.level == null) {
+            return 0L;
+        }
+        long total = 0L;
+        for (BlockPos powerPos : this.powerSupplyPositions) {
+            if (this.level.getBlockEntity(powerPos) instanceof BeeSXIPowerSupplyBlockEntity power) {
+                total += power.getEnergyStored();
+            }
+        }
+        for (BlockPos powerPos : this.batteryPositions) {
+            if (this.level.getBlockEntity(powerPos) instanceof BeeSXIPowerSupplyBlockEntity power) {
+                total += power.getEnergyStored();
+            }
+        }
+        return total;
+    }
+
+    private long getTotalPowerCapacity() {
+        if (this.level == null) {
+            return 0L;
+        }
+        long total = 0L;
+        for (BlockPos powerPos : this.powerSupplyPositions) {
+            if (this.level.getBlockEntity(powerPos) instanceof BeeSXIPowerSupplyBlockEntity power) {
+                total += power.getMaxEnergyStored();
+            }
+        }
+        for (BlockPos powerPos : this.batteryPositions) {
+            if (this.level.getBlockEntity(powerPos) instanceof BeeSXIPowerSupplyBlockEntity power) {
+                total += power.getMaxEnergyStored();
+            }
+        }
+        return total;
+    }
+
+    private int getAnalyzeProgressPercent() {
+        if (!this.analyzing) {
+            return 100;
+        }
+        int elapsed = ANALYZE_DURATION_TICKS - this.analyzeTicksRemaining;
+        return Math.max(0, Math.min(100, (int) ((elapsed * 100L) / ANALYZE_DURATION_TICKS)));
+    }
+
     private void sync() {
+        this.uiPowerStored = getTotalPowerStored();
+        this.uiPowerCapacity = getTotalPowerCapacity();
+        this.uiAnalyzeProgress = getAnalyzeProgressPercent();
+
         this.setChanged();
         if (this.level instanceof ServerLevel serverLevel) {
             BlockState state = this.getBlockState();
             serverLevel.sendBlockUpdated(this.worldPosition, state, state, 3);
+        }
+
+        this.lastSyncedPowerStored = this.uiPowerStored;
+        this.lastSyncedPowerCapacity = this.uiPowerCapacity;
+        this.lastSyncedAnalyzeProgress = this.uiAnalyzeProgress;
+        this.lastSyncedAnalyzing = this.analyzing;
+    }
+
+    private void syncIfUiChanged() {
+        long powerStored = getTotalPowerStored();
+        long powerCapacity = getTotalPowerCapacity();
+        int analyzeProgress = getAnalyzeProgressPercent();
+        if (powerStored != this.lastSyncedPowerStored
+            || powerCapacity != this.lastSyncedPowerCapacity
+            || analyzeProgress != this.lastSyncedAnalyzeProgress
+            || this.lastSyncedAnalyzing != this.analyzing) {
+            sync();
         }
     }
 
@@ -640,7 +972,23 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public int getMaxInventoryPage() {
-        return Math.max(0, (getHddNetworkSlotCount() - 1) / 26);
+        return Math.max(0, (getHddNetworkSlotCount() - 1) / NETWORK_SLOT_PAGE_SIZE);
+    }
+
+    public long getPowerStoredForUi() {
+        return this.uiPowerStored;
+    }
+
+    public long getPowerCapacityForUi() {
+        return this.uiPowerCapacity;
+    }
+
+    public boolean isAnalyzing() {
+        return this.analyzing;
+    }
+
+    public int getAnalyzeProgressForUi() {
+        return getAnalyzeProgressPercent();
     }
 
     public ItemStack getHddNetworkItem(int slot) {
@@ -651,16 +999,52 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         return ref.hdd.getItem(ref.slot);
     }
 
-    public ItemStack removeHddNetworkItem(int slot, int amount) {
+    public ItemStack extractHddNetworkItem(int slot, int amount) {
         HddSlotRef ref = resolveHddSlot(slot);
         if (ref == null) {
             return ItemStack.EMPTY;
         }
-        ItemStack removed = ref.hdd.removeItem(ref.slot, amount);
+        ItemStack removed = ref.hdd.extractStack(ref.slot, amount);
         if (!removed.isEmpty()) {
             sync();
         }
         return removed;
+    }
+
+    public int getHddBytesUsed(int slot) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return 0;
+        }
+        return ref.hdd.getUsedBytes();
+    }
+
+    public int getHddBytesTotal(int slot) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return 0;
+        }
+        return ref.hdd.getTotalCapacityBytes();
+    }
+
+    public int getHddTypesUsed(int slot) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return 0;
+        }
+        return ref.hdd.getUsedTypes();
+    }
+
+    public int getHddTypesMax(int slot) {
+        HddSlotRef ref = resolveHddSlot(slot);
+        if (ref == null) {
+            return 0;
+        }
+        return ref.hdd.getMaxTypes();
+    }
+
+    public ItemStack removeHddNetworkItem(int slot, int amount) {
+        return extractHddNetworkItem(slot, amount);
     }
 
     public void setHddNetworkItem(int slot, ItemStack stack) {
@@ -718,6 +1102,14 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         tag.putInt("RamCount", this.ramCount);
         tag.putInt("ActiveTab", this.activeTab);
         tag.putInt("InventoryPage", this.inventoryPage);
+        tag.putBoolean("Analyzing", this.analyzing);
+        tag.putInt("AnalyzeTicksRemaining", this.analyzeTicksRemaining);
+        tag.putString("PendingAnalyzeSpecies", this.pendingAnalyzeSpeciesId == null ? "" : this.pendingAnalyzeSpeciesId.toString());
+        tag.putFloat("PendingAnalyzeSpeed", this.pendingAnalyzeSpeed);
+        tag.putString("PendingAnalyzeActivity", this.pendingAnalyzeActivityId == null ? "" : this.pendingAnalyzeActivityId.toString());
+        tag.putLong("UiPowerStored", this.uiPowerStored);
+        tag.putLong("UiPowerCapacity", this.uiPowerCapacity);
+        tag.putInt("UiAnalyzeProgress", this.uiAnalyzeProgress);
 
         ListTag analyzed = new ListTag();
         for (Map.Entry<ResourceLocation, AnalyzedBeeTraits> entry : this.analyzedSpecies.entrySet()) {
@@ -747,6 +1139,26 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             hdds.add(posTag);
         }
         tag.put("HddPositions", hdds);
+
+        ListTag powerBlocks = new ListTag();
+        for (BlockPos powerPos : this.powerSupplyPositions) {
+            CompoundTag posTag = new CompoundTag();
+            posTag.putInt("X", powerPos.getX());
+            posTag.putInt("Y", powerPos.getY());
+            posTag.putInt("Z", powerPos.getZ());
+            powerBlocks.add(posTag);
+        }
+        tag.put("PowerSupplyPositions", powerBlocks);
+
+        ListTag batteries = new ListTag();
+        for (BlockPos powerPos : this.batteryPositions) {
+            CompoundTag posTag = new CompoundTag();
+            posTag.putInt("X", powerPos.getX());
+            posTag.putInt("Y", powerPos.getY());
+            posTag.putInt("Z", powerPos.getZ());
+            batteries.add(posTag);
+        }
+        tag.put("BatteryPositions", batteries);
     }
 
     @Override
@@ -762,6 +1174,14 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.ramCount = tag.getInt("RamCount");
         this.activeTab = tag.getInt("ActiveTab");
         this.inventoryPage = Math.max(0, tag.getInt("InventoryPage"));
+        this.analyzing = tag.getBoolean("Analyzing");
+        this.analyzeTicksRemaining = Math.max(0, tag.getInt("AnalyzeTicksRemaining"));
+        this.pendingAnalyzeSpeciesId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeSpecies"));
+        this.pendingAnalyzeSpeed = tag.contains("PendingAnalyzeSpeed", Tag.TAG_FLOAT) ? tag.getFloat("PendingAnalyzeSpeed") : 0.0F;
+        this.pendingAnalyzeActivityId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeActivity"));
+        this.uiPowerStored = tag.contains("UiPowerStored", Tag.TAG_LONG) ? tag.getLong("UiPowerStored") : 0L;
+        this.uiPowerCapacity = tag.contains("UiPowerCapacity", Tag.TAG_LONG) ? tag.getLong("UiPowerCapacity") : 0L;
+        this.uiAnalyzeProgress = tag.contains("UiAnalyzeProgress", Tag.TAG_INT) ? tag.getInt("UiAnalyzeProgress") : (this.analyzing ? 0 : 100);
 
         this.analyzedSpecies.clear();
         ListTag analyzed = tag.getList("AnalyzedSpecies", Tag.TAG_COMPOUND);
@@ -804,8 +1224,23 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             this.hddPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
         }
 
+        this.powerSupplyPositions.clear();
+        ListTag powerBlocks = tag.getList("PowerSupplyPositions", Tag.TAG_COMPOUND);
+        for (int i = 0; i < powerBlocks.size(); i++) {
+            CompoundTag posTag = powerBlocks.getCompound(i);
+            this.powerSupplyPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
+        }
+
+        this.batteryPositions.clear();
+        ListTag batteries = tag.getList("BatteryPositions", Tag.TAG_COMPOUND);
+        for (int i = 0; i < batteries.size(); i++) {
+            CompoundTag posTag = batteries.getCompound(i);
+            this.batteryPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
+        }
+
         this.assembledPositions.clear();
         resizeVirtualHives();
+        this.inventoryMaxPage = getMaxInventoryPage();
     }
 
     @Override
@@ -905,19 +1340,23 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         final int rams;
         final boolean hasAnalyzer;
         final List<BlockPos> hddPositions;
+        final List<BlockPos> powerSupplyPositions;
+        final List<BlockPos> batteryPositions;
         final List<BlockPos> structurePositions;
 
-        private StructureValidationResult(boolean valid, int cpus, int rams, boolean hasAnalyzer, List<BlockPos> hddPositions, List<BlockPos> structurePositions) {
+        private StructureValidationResult(boolean valid, int cpus, int rams, boolean hasAnalyzer, List<BlockPos> hddPositions, List<BlockPos> powerSupplyPositions, List<BlockPos> batteryPositions, List<BlockPos> structurePositions) {
             this.valid = valid;
             this.cpus = cpus;
             this.rams = rams;
             this.hasAnalyzer = hasAnalyzer;
             this.hddPositions = hddPositions;
+            this.powerSupplyPositions = powerSupplyPositions;
+            this.batteryPositions = batteryPositions;
             this.structurePositions = structurePositions;
         }
 
         static StructureValidationResult invalid() {
-            return new StructureValidationResult(false, 0, 0, false, List.of(), List.of());
+            return new StructureValidationResult(false, 0, 0, false, List.of(), List.of(), List.of(), List.of());
         }
     }
 

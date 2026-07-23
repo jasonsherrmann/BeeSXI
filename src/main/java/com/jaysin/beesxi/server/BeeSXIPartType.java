@@ -5,5 +5,7 @@ public enum BeeSXIPartType {
     RAM,
     CASING,
     MOLECULAR_ANALYZER,
-    HDD
+    HDD,
+    POWER_SUPPLY,
+    BATTERY
 }
