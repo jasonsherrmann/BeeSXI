@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "beesxi:block/beesxi_power_supply"
+    "all": "beesxi:block/beesxi_battery_assembled"
   }
 }

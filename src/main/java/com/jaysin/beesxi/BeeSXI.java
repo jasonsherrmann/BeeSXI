@@ -3,8 +3,11 @@ package com.jaysin.beesxi;
 import javax.annotation.Nonnull;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -36,6 +39,7 @@ public class BeeSXI {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(Registries.ITEM, MODID);
+    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
 
@@ -71,20 +75,37 @@ public class BeeSXI {
     public static final DeferredHolder<MenuType<?>, MenuType<BeeSXIServerMenu>> BEESXI_SERVER_MENU =
         MENUS.register("beesxi_server", () -> IMenuTypeExtension.create(BeeSXIServerMenu::fromNetwork));
 
+    public static final DeferredHolder<Item, Item> BEESXI_CONTROLLER_ITEM = ITEMS.register("beesxi_controller", () -> new BlockItem(BEESXI_CONTROLLER.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_CPU_ITEM = ITEMS.register("beesxi_cpu", () -> new BlockItem(BEESXI_CPU.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_RAM_ITEM = ITEMS.register("beesxi_ram", () -> new BlockItem(BEESXI_RAM.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_HDD_ITEM = ITEMS.register("beesxi_hdd", () -> new BlockItem(BEESXI_HDD.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_CASING_ITEM = ITEMS.register("beesxi_casing", () -> new BlockItem(BEESXI_CASING.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> MOLECULAR_ANALYZER_ITEM = ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_BATTERY_ITEM = ITEMS.register("beesxi_battery", () -> new BlockItem(BEESXI_BATTERY.get(), new Item.Properties()));
+
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BEESXI_CREATIVE_TAB = CREATIVE_MODE_TABS.register("beesxi",
+        () -> CreativeModeTab.builder()
+            .title(Component.translatable("itemGroup.beesxi"))
+            .icon(() -> new ItemStack(BEESXI_CONTROLLER_ITEM.get()))
+            .displayItems((params, output) -> {
+                output.accept(BEESXI_CONTROLLER_ITEM.get());
+                output.accept(BEESXI_CPU_ITEM.get());
+                output.accept(BEESXI_RAM_ITEM.get());
+                output.accept(BEESXI_HDD_ITEM.get());
+                output.accept(BEESXI_CASING_ITEM.get());
+                output.accept(MOLECULAR_ANALYZER_ITEM.get());
+                output.accept(BEESXI_POWER_SUPPLY_ITEM.get());
+                output.accept(BEESXI_BATTERY_ITEM.get());
+            })
+            .build());
+
     public BeeSXI(@Nonnull IEventBus modEventBus) {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
+        CREATIVE_MODE_TABS.register(modEventBus);
         BLOCK_ENTITIES.register(modEventBus);
         MENUS.register(modEventBus);
-
-        ITEMS.register("beesxi_controller", () -> new BlockItem(BEESXI_CONTROLLER.get(), new Item.Properties()));
-        ITEMS.register("beesxi_cpu", () -> new BlockItem(BEESXI_CPU.get(), new Item.Properties()));
-        ITEMS.register("beesxi_ram", () -> new BlockItem(BEESXI_RAM.get(), new Item.Properties()));
-        ITEMS.register("beesxi_hdd", () -> new BlockItem(BEESXI_HDD.get(), new Item.Properties()));
-        ITEMS.register("beesxi_casing", () -> new BlockItem(BEESXI_CASING.get(), new Item.Properties()));
-        ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties()));
-        ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties()));
-        ITEMS.register("beesxi_battery", () -> new BlockItem(BEESXI_BATTERY.get(), new Item.Properties()));
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerCapabilities);

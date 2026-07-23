@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -67,6 +68,9 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
         }
 
         if (player instanceof ServerPlayer serverPlayer && level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
+            if (!controller.isFormed()) {
+                controller.sendStructureDiagnosticsTo(serverPlayer);
+            }
             serverPlayer.openMenu(controller, controller::writeMenuData);
             return InteractionResult.CONSUME;
         }
@@ -84,7 +88,16 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
         if (!level.isClientSide && !player.isCreative()) {
             popResource(level, pos, new ItemStack(this));
+            BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
+    public void setPlacedBy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nullable LivingEntity placer, @Nonnull ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide) {
+            BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
+        }
     }
 }

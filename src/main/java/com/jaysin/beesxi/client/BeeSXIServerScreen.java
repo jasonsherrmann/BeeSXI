@@ -33,6 +33,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     private Button analysisTabButton;
     private Button virtualTabButton;
     private Button inventoryTabButton;
+    private Button infoTabButton;
     private Button prevPageButton;
     private Button nextPageButton;
     private Button analyzeSlotButton;
@@ -74,6 +75,11 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             .build());
         this.tabButtons.add(this.inventoryTabButton);
 
+        this.infoTabButton = this.addRenderableWidget(Button.builder(Component.literal("Info"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_INFO))
+            .bounds(x + 8, y + 114, 68, 20)
+            .build());
+        this.tabButtons.add(this.infoTabButton);
+
         this.prevPageButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> {
             if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
                 linePage = Math.max(0, linePage - 1);
@@ -94,7 +100,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             .build());
 
         this.analyzeSlotButton = this.addRenderableWidget(Button.builder(Component.literal("Analyze"), b -> pressMenuButton(9000))
-            .bounds(x + 108, y + 8, 76, 20)
+            .bounds(x + 128, y + 18, 76, 20)
             .build());
 
         this.analyzedPrevButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> analyzedPage = Math.max(0, analyzedPage - 1))
@@ -109,8 +115,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             int line = i;
             this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 0)).bounds(x + 90, rowY, 16, 16).build()));
             this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 1)).bounds(x + 108, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("-"), b -> pressLineButton(line, 2)).bounds(x + 342, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("+"), b -> pressLineButton(line, 3)).bounds(x + 360, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("-"), b -> pressLineButton(line, 2)).bounds(x + 332, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("+"), b -> pressLineButton(line, 3)).bounds(x + 350, rowY, 16, 16).build()));
         }
 
         updateWidgetVisibility();
@@ -156,16 +162,45 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
 
         long powerStored = this.menu.getPowerStoredForUi();
         long powerCap = this.menu.getPowerCapacityForUi();
+        long totalRfPerTick = this.menu.getTotalRfPerTickForUi();
+        long instanceRfPerTick = this.menu.getInstanceRfPerTickForUi();
+        long analyzeRfPerTick = this.menu.getAnalyzeRfPerTickForUi();
         String powerText = "Power: " + powerStored + " / " + powerCap + " RF";
-        guiGraphics.drawString(this.font, powerText, this.leftPos + 108, this.topPos + 34, 0x000000, false);
+        String usageText = "Usage: " + totalRfPerTick + " RF/t (Instances " + instanceRfPerTick + ", Analysis " + analyzeRfPerTick + ")";
+        guiGraphics.drawString(this.font, powerText, this.leftPos + 118, this.topPos + 5, 0x000000, false);
+        guiGraphics.drawString(this.font, usageText, this.leftPos + 118, this.topPos + 14, 0x000000, false);
 
         if (tab == BeeSXIControllerBlockEntity.TAB_ANALYSIS) {
             renderAnalysisTab(guiGraphics, mouseX, mouseY);
         } else if (tab == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
             renderVirtualTab(guiGraphics, mouseX, mouseY);
-        } else {
+        } else if (tab == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
             renderInventoryTab(guiGraphics);
+        } else {
+            renderInfoTab(guiGraphics);
         }
+    }
+
+    private void renderInfoTab(GuiGraphics guiGraphics) {
+        guiGraphics.drawString(this.font, "Multiblock Info", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font,
+            "Dimensions: " + this.menu.getStructureDimX() + "x" + this.menu.getStructureDimY() + "x" + this.menu.getStructureDimZ(),
+            this.leftPos + 108, this.topPos + 40, 0x000000, false);
+
+        int y = this.topPos + 54;
+        guiGraphics.drawString(this.font, "Controller: " + this.menu.getStructureControllerCount(), this.leftPos + 108, y, 0x000000, false);
+        guiGraphics.drawString(this.font, "Casing: " + this.menu.getStructureCasingCount(), this.leftPos + 230, y, 0x000000, false);
+        y += 12;
+        guiGraphics.drawString(this.font, "CPU: " + this.menu.getStructureCpuCount(), this.leftPos + 108, y, 0x000000, false);
+        guiGraphics.drawString(this.font, "RAM: " + this.menu.getStructureRamCount(), this.leftPos + 230, y, 0x000000, false);
+        y += 12;
+        guiGraphics.drawString(this.font, "HDD: " + this.menu.getStructureHddCount(), this.leftPos + 108, y, 0x000000, false);
+        guiGraphics.drawString(this.font, "Analyzer: " + this.menu.getStructureAnalyzerCount(), this.leftPos + 230, y, 0x000000, false);
+        y += 12;
+        guiGraphics.drawString(this.font, "Power Supply: " + this.menu.getStructurePowerSupplyCount(), this.leftPos + 108, y, 0x000000, false);
+        guiGraphics.drawString(this.font, "Battery: " + this.menu.getStructureBatteryCount(), this.leftPos + 230, y, 0x000000, false);
+        y += 12;
+        guiGraphics.drawString(this.font, "Invalid/Missing: " + this.menu.getStructureInvalidCount(), this.leftPos + 108, y, 0xB03030, false);
     }
 
     private void renderAnalysisTab(GuiGraphics guiGraphics, int mouseX, int mouseY) {
@@ -174,15 +209,15 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             return;
         }
 
-        guiGraphics.drawString(this.font, "Insert bee in analyzer slot", this.leftPos + 108, this.topPos + 46, 0xD2DBE8, false);
+        guiGraphics.drawString(this.font, "Insert bee in analyzer slot", this.leftPos + 108, this.topPos + 44, 0xD2DBE8, false);
         guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 54, 0x000000, false);
         String analyzeProgressText = this.menu.isAnalyzing() ? "Analysis Progress: " + this.menu.getAnalyzeProgressPercent() + "%" : "Analysis Progress: Ready";
         guiGraphics.drawString(this.font, analyzeProgressText, this.leftPos + 108, this.topPos + 64, 0x000000, false);
-        int slotX = this.leftPos + 102;
-        int slotY = this.topPos + 8;
+        int slotX = this.leftPos + 108;
+        int slotY = this.topPos + 20;
         guiGraphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF8A96A8);
         guiGraphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0xFF202A38);
-        int maxLines = 4;
+        int maxLines = 6;
         var analyzed = this.menu.getAnalyzedSpeciesIds();
         int maxPage = Math.max(0, (analyzed.size() - 1) / maxLines);
         if (this.analyzedPage > maxPage) {
@@ -204,8 +239,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
 
         ItemStack input = this.menu.slots.get(0).getItem();
         if (!input.isEmpty()) {
-            guiGraphics.renderItem(input, this.leftPos + 102, this.topPos + 8);
-            captureHoveredStack(input, this.leftPos + 102, this.topPos + 8, mouseX, mouseY);
+            guiGraphics.renderItem(input, this.leftPos + 108, this.topPos + 14);
+            captureHoveredStack(input, this.leftPos + 108, this.topPos + 14, mouseX, mouseY);
         }
     }
 
@@ -240,7 +275,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
                 guiGraphics.drawString(this.font, trim(species.getPath(), 10), this.leftPos + 228, y + 4, 0x000000, false);
             }
             guiGraphics.drawString(this.font, "SPD " + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 270, y + 4, 0xA7E8B6, false);
-            guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 387, y + 4, 0xFFFF99, false);
+            guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 372, y + 4, 0xFFFF99, false);
 
             renderSpeciesRowIcons(guiGraphics, species, y, mouseX, mouseY);
         }
@@ -349,6 +384,9 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         }
         if (this.inventoryTabButton != null) {
             this.inventoryTabButton.active = tab != BeeSXIControllerBlockEntity.TAB_INVENTORY;
+        }
+        if (this.infoTabButton != null) {
+            this.infoTabButton.active = tab != BeeSXIControllerBlockEntity.TAB_INFO;
         }
 
         boolean analysisActive = tab == BeeSXIControllerBlockEntity.TAB_ANALYSIS;

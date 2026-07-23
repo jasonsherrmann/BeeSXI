@@ -227,6 +227,66 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.controller.getPowerCapacityForUi();
     }
 
+    public long getTotalRfPerTickForUi() {
+        return this.data.get(12);
+    }
+
+    public long getInstanceRfPerTickForUi() {
+        return this.data.get(13);
+    }
+
+    public long getAnalyzeRfPerTickForUi() {
+        return this.data.get(14);
+    }
+
+    public int getStructureDimX() {
+        return this.data.get(15);
+    }
+
+    public int getStructureDimY() {
+        return this.data.get(16);
+    }
+
+    public int getStructureDimZ() {
+        return this.data.get(17);
+    }
+
+    public int getStructureControllerCount() {
+        return this.data.get(18);
+    }
+
+    public int getStructureCasingCount() {
+        return this.data.get(19);
+    }
+
+    public int getStructureCpuCount() {
+        return this.data.get(20);
+    }
+
+    public int getStructureRamCount() {
+        return this.data.get(21);
+    }
+
+    public int getStructureHddCount() {
+        return this.data.get(22);
+    }
+
+    public int getStructureAnalyzerCount() {
+        return this.data.get(23);
+    }
+
+    public int getStructurePowerSupplyCount() {
+        return this.data.get(24);
+    }
+
+    public int getStructureBatteryCount() {
+        return this.data.get(25);
+    }
+
+    public int getStructureInvalidCount() {
+        return this.data.get(26);
+    }
+
     public java.util.List<ResourceLocation> getAnalyzedSpeciesIds() {
         return this.controller.getAnalyzedSpeciesIds();
     }

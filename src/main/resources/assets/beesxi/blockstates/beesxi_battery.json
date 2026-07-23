@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "assembled=false": {
+      "model": "beesxi:block/beesxi_battery"
+    },
+    "assembled=true": {
+      "model": "beesxi:block/beesxi_battery_assembled"
+    }
+  }
+}

@@ -9,7 +9,8 @@ Balance the production values
 Make sure production percentages are accurate
 Export from analysis tab to some item that can be analyzed quickly by another analyzer?
 Make a debug item that unlocks all species
-make multiblock blocks blast proof
+make multiblock blocks blast proof, non spawnable for wandering trader/mobs 
+bring back old hdd and call it a storage drawer? 
 
 ======================
 Broken
@@ -17,7 +18,6 @@ Broken
 
 BeeSXI Controller should say something else once the multiblock is built
     Virtual Hives tab
-        page buttons overlapped tab buttons
         CPU# should just be the number and be on the other side of the chooser
         Chooser should probably not be just pushing next until you find the right one
         Shift click chooser to add 5/10 etc
@@ -28,15 +28,10 @@ BeeSXI Controller should say something else once the multiblock is built
 Add info tab or move info to not behind everything
 Unlocked species should be the icon probably, with hover over for activity type etc
 Inventory tab still wonky
-Analysis tab takes the 10 million all at once
-all power is taken all at once, doesn't drain like in other mods
-Multiblock logic sometimes fails on 3x3x3 or 3x3xtall 
 I get lag and glitches when placing some of the casings, check if the multiblock logic is running too often
 Need export bus since the HDDs cant be piped out of
-Make the multiblock load the chunks its in? what if its split over the chunk line?
-Power only drains at 1k per cycle, NOT per itteration
-include a per tick calculation somewhere
-the menu for an inactivated controller shoudl tell you which multiblock items are missing/invalid
+
+
 
 
 =================================
@@ -50,3 +45,4 @@ Turn off when redstone connected? new block, and a stop button in the gui
 Additional tiers of CPU/RAM/HDD
 controller, analyzer and drives should be light emitting probably
 Allow more than one analyzer?
+Make the multiblock load the chunks its in? what if its split over the chunk line?
