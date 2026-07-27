@@ -1,6 +1,8 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube_bottom_top",
   "textures": {
-    "all": "beesxi:block/beesxi_controller_assembled"
+    "top": "beesxi:block/beesxi_controller_top",
+    "bottom": "beesxi:block/beesxi_controller_top",
+    "side": "beesxi:block/beesxi_controller_assembled"
   }
 }

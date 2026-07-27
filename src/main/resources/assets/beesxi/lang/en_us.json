@@ -6,5 +6,7 @@
   "block.beesxi.beesxi_hdd": "BeeSXI HDD",
   "block.beesxi.beesxi_casing": "BeeSXI Casing",
   "block.beesxi.molecular_analyzer": "Molecular Analyzer",
-  "menu.beesxi.beesxi_server": "BeeSXI Server"
+  "menu.beesxi.beesxi_server": "BeeSXI Server",
+  "item.beesxi.capacitor_empty": "Empty Capacitor",
+  "item.beesxi.capacitor_filled": "Oil-Filled Capacitor"
 }
