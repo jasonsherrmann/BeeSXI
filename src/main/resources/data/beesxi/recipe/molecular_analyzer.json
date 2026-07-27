@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "beesxi:beesxi_casing"
+    },
+    "X": {
+      "item": "forestry:genetic_filter"
+    },
+    "Y": {
+      "item": "forestry:analyzer"
+    }
+  },
+  "pattern": [
+    "WXW",
+    "XYX",
+    "WXW"
+  ],
+  "result": {
+    "id": "beesxi:molecular_analyzer",
+    "count": 1
+  },
+  "show_notification": true
+}

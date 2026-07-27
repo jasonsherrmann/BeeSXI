@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "X": {
+      "item": "minecraft:iron_ingot"
+    },
+    "Y": {
+      "item": "forestry:hardened_casing"
+    }
+  },
+  "pattern": [
+    "XXX",
+    "XYX",
+    "XXX"
+  ],
+  "result": {
+    "id": "beesxi:beesxi_casing",
+    "count": 1
+  },
+  "show_notification": true
+}

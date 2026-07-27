@@ -21,6 +21,7 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.jaysin.beesxi.server.BeeSXIControllerBlock;
@@ -43,6 +44,7 @@ public class BeeSXI {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
 
+    
     public static final DeferredBlock<Block> BEESXI_CONTROLLER = BLOCKS.register("beesxi_controller",
         () -> new BeeSXIControllerBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0F, 10.0F)));
     public static final DeferredBlock<Block> BEESXI_CPU = BLOCKS.register("beesxi_cpu",
@@ -83,6 +85,10 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> MOLECULAR_ANALYZER_ITEM = ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_BATTERY_ITEM = ITEMS.register("beesxi_battery", () -> new BlockItem(BEESXI_BATTERY.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> CAPACITOR_EMPTY = ITEMS.register("capacitor_empty", () -> new Item(new Item.Properties()));
+    public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled", () -> new Item(new Item.Properties()));
+    
+
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BEESXI_CREATIVE_TAB = CREATIVE_MODE_TABS.register("beesxi",
         () -> CreativeModeTab.builder()
@@ -97,6 +103,9 @@ public class BeeSXI {
                 output.accept(MOLECULAR_ANALYZER_ITEM.get());
                 output.accept(BEESXI_POWER_SUPPLY_ITEM.get());
                 output.accept(BEESXI_BATTERY_ITEM.get());
+                output.accept(CAPACITOR_EMPTY.get());
+                output.accept(CAPACITOR_FILLED.get());
+                 
             })
             .build());
 

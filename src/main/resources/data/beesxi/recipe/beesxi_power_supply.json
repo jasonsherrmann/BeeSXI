@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "beesxi:beesxi_casing"
+    },
+    "X": {
+      "item": "minecraft:redstone_block"
+    },
+    "Y": {
+      "item": "beesxi:capacitor_filled"
+    }
+  },
+  "pattern": [
+    "WXW",
+    "XYX",
+    "WXW"
+  ],
+  "result": {
+    "id": "beesxi:beesxi_power_supply",
+    "count": 1
+  },
+  "show_notification": true
+}

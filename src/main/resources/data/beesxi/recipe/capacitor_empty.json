@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "minecraft:paper"
+    },
+    "X": {
+      "item": "forestry:tin_ingot"
+    }
+
+  },
+  "pattern": [
+    "WWW",
+    "WXW",
+    "X X"
+  ],
+  "result": {
+    "id": "beesxi:capacitor_empty",
+    "count": 1
+  },
+  "show_notification": true
+}

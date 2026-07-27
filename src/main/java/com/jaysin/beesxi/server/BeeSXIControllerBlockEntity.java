@@ -65,7 +65,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private static final int ANALYZE_DURATION_TICKS = 20 * 60 * 5;
     private static final long ANALYZE_RF_COST = 10_000_000L;
     private static final String PAPER_SPECIES_KEY = "BeeSXIAnalyzedSpecies";
-    private static final long RF_PER_TICK_INSTANCE = 5L;
+    private static final long RF_PER_TICK_INSTANCE = 100L;
     private static final long RF_PER_TICK_CPU = 0L;
     private static final long RF_PER_TICK_RAM = 0L;
     private static final long RF_PER_TICK_CONTROLLER = 0L;

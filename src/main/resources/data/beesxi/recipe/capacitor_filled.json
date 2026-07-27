@@ -1,0 +1,27 @@
+{
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/capacitor_filled",
+  "liquid": {
+    "amount": 250,
+    "id": "forestry:seed_oil"
+  },
+  "recipe": {
+    "category": "misc",
+    "key": {
+      "#": {
+        "item": "beesxi:capacitor_empty"
+      }
+    },
+    "pattern": [
+      "   ",
+      " # ",
+      "   "
+    ],
+    "result": {
+      "count": 1,
+      "id": "beesxi:capacitor_filled"
+    }
+  },
+  "time": 50
+}
