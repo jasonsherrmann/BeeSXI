@@ -15,5 +15,6 @@ public final class ClientModEvents {
     @SubscribeEvent
     public static void registerMenuScreens(RegisterMenuScreensEvent event) {
         event.register(BeeSXI.BEESXI_SERVER_MENU.get(), BeeSXIServerScreen::new);
+        event.register(BeeSXI.BEESXI_EXPORT_BUS_MENU.get(), BeeSXIExportBusScreen::new);
     }
 }

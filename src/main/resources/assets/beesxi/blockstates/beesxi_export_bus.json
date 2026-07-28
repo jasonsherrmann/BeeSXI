@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "assembled=false": {
+      "model": "beesxi:block/beesxi_export_bus"
+    },
+    "assembled=true": {
+      "model": "beesxi:block/beesxi_export_bus_assembled"
+    }
+  }
+}

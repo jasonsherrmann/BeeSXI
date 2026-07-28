@@ -7,5 +7,6 @@ public enum BeeSXIPartType {
     MOLECULAR_ANALYZER,
     HDD,
     POWER_SUPPLY,
-    BATTERY
+    BATTERY,
+    EXPORT_BUS,
 }

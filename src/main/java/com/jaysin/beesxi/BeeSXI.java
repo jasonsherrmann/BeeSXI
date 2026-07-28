@@ -28,6 +28,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.jaysin.beesxi.server.BeeSXIControllerBlock;
 import com.jaysin.beesxi.server.BeeSXIControllerBlockEntity;
+import com.jaysin.beesxi.server.BeeSXIExportBusBlock;
+import com.jaysin.beesxi.server.BeeSXIExportBusBlockEntity;
+import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
 import com.jaysin.beesxi.server.BeeSXIHddBlock;
 import com.jaysin.beesxi.server.BeeSXIHddBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIPartBlock;
@@ -63,6 +66,8 @@ public class BeeSXI {
         () -> new BeeSXIPowerBlock(BeeSXIPartType.POWER_SUPPLY, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
     public static final DeferredBlock<Block> BEESXI_BATTERY = BLOCKS.register("beesxi_battery",
         () -> new BeeSXIPowerBlock(BeeSXIPartType.BATTERY, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
+    public static final DeferredBlock<Block> BEESXI_EXPORT_BUS = BLOCKS.register("beesxi_export_bus",
+        () -> new BeeSXIExportBusBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIControllerBlockEntity>> BEESXI_CONTROLLER_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("beesxi_controller",
@@ -76,8 +81,14 @@ public class BeeSXI {
         BLOCK_ENTITIES.register("beesxi_power_supply",
             () -> BlockEntityType.Builder.of(BeeSXIPowerSupplyBlockEntity::new, BEESXI_POWER_SUPPLY.get(), BEESXI_BATTERY.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIExportBusBlockEntity>> BEESXI_EXPORT_BUS_BLOCK_ENTITY =
+        BLOCK_ENTITIES.register("beesxi_export_bus",
+            () -> BlockEntityType.Builder.of(BeeSXIExportBusBlockEntity::new, BEESXI_EXPORT_BUS.get()).build(null));
+
     public static final DeferredHolder<MenuType<?>, MenuType<BeeSXIServerMenu>> BEESXI_SERVER_MENU =
         MENUS.register("beesxi_server", () -> IMenuTypeExtension.create(BeeSXIServerMenu::fromNetwork));
+    public static final DeferredHolder<MenuType<?>, MenuType<BeeSXIExportBusMenu>> BEESXI_EXPORT_BUS_MENU =
+        MENUS.register("beesxi_export_bus", () -> IMenuTypeExtension.create(BeeSXIExportBusMenu::fromNetwork));
 
     public static final DeferredHolder<Item, Item> BEESXI_CONTROLLER_ITEM = ITEMS.register("beesxi_controller", () -> new BlockItem(BEESXI_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_CPU_ITEM = ITEMS.register("beesxi_cpu", () -> new BlockItem(BEESXI_CPU.get(), new Item.Properties()));
@@ -87,6 +98,7 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> MOLECULAR_ANALYZER_ITEM = ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_BATTERY_ITEM = ITEMS.register("beesxi_battery", () -> new BlockItem(BEESXI_BATTERY.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_EXPORT_BUS_ITEM = ITEMS.register("beesxi_export_bus", () -> new BlockItem(BEESXI_EXPORT_BUS.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> CAPACITOR_EMPTY = ITEMS.register("capacitor_empty", () -> new Item(new Item.Properties()));
     public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled", () -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)));
     
@@ -105,6 +117,7 @@ public class BeeSXI {
                 output.accept(MOLECULAR_ANALYZER_ITEM.get());
                 output.accept(BEESXI_POWER_SUPPLY_ITEM.get());
                 output.accept(BEESXI_BATTERY_ITEM.get());
+                output.accept(BEESXI_EXPORT_BUS_ITEM.get());
                 output.accept(CAPACITOR_EMPTY.get());
                 output.accept(CAPACITOR_FILLED.get());
                  
@@ -130,6 +143,11 @@ public class BeeSXI {
             Capabilities.EnergyStorage.BLOCK,
             BEESXI_POWER_SUPPLY_BLOCK_ENTITY.get(),
             (blockEntity, context) -> blockEntity.getEnergyStorage()
+        );
+        event.registerBlockEntity(
+            Capabilities.ItemHandler.BLOCK,
+            BEESXI_EXPORT_BUS_BLOCK_ENTITY.get(),
+            (blockEntity, context) -> blockEntity.getOutputItemHandler()
         );
     }
 }

@@ -200,6 +200,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         guiGraphics.drawString(this.font, "Power Supply: " + this.menu.getStructurePowerSupplyCount(), this.leftPos + 108, y, 0x000000, false);
         guiGraphics.drawString(this.font, "Battery: " + this.menu.getStructureBatteryCount(), this.leftPos + 230, y, 0x000000, false);
         y += 12;
+        guiGraphics.drawString(this.font, "Export Bus: " + this.menu.getStructureExportBusCount(), this.leftPos + 108, y, 0x000000, false);
+        y += 12;
         guiGraphics.drawString(this.font, "Invalid/Missing: " + this.menu.getStructureInvalidCount(), this.leftPos + 108, y, 0xB03030, false);
     }
 

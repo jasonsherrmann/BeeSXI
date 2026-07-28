@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "beesxi:beesxi_casing"
+    },
+    "X": {
+      "item": "minecraft:hopper"
+    },
+    "Y": {
+      "item": "minecraft:chest"
+    },
+    "Z": {
+      "item": "minecraft:dispenser"
+    }
+  },
+  "pattern": [
+    "WXW",
+    "ZYZ",
+    "WXW"
+  ],
+  "result": {
+    "id": "beesxi:beesxi_export_bus",
+    "count": 1
+  },
+  "show_notification": true
+}

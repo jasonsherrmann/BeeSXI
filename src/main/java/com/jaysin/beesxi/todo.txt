@@ -29,8 +29,7 @@ Add info tab or move info to not behind everything
 Unlocked species should be the icon probably, with hover over for activity type etc
 Inventory tab still wonky
 I get lag and glitches when placing some of the casings, check if the multiblock logic is running too often
-Need export bus since the HDDs cant be piped out of
-
+Add EcksOdinson to list of Special Thanks for help with Export Bus
 
 
 

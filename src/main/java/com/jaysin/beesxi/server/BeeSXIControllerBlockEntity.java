@@ -83,6 +83,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private final List<BlockPos> hddPositions = new ArrayList<>();
     private final List<BlockPos> powerSupplyPositions = new ArrayList<>();
     private final List<BlockPos> batteryPositions = new ArrayList<>();
+    private final List<BlockPos> exportBusPositions = new ArrayList<>();
     private final Set<BlockPos> assembledPositions = new HashSet<>();
 
     private boolean formed;
@@ -119,6 +120,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private int uiAnalyzerCount;
     private int uiPowerSupplyCount;
     private int uiBatteryCount;
+    private int uiExportBusCount;
     private int uiInvalidCount;
     private long lastValidationTick;
     private long lastProductionTick;
@@ -155,6 +157,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 24 -> BeeSXIControllerBlockEntity.this.uiPowerSupplyCount;
                 case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount;
                 case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount;
+                case 27 -> BeeSXIControllerBlockEntity.this.uiExportBusCount;
                 default -> 0;
             };
         }
@@ -188,6 +191,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 24 -> BeeSXIControllerBlockEntity.this.uiPowerSupplyCount = Math.max(0, value);
                 case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount = Math.max(0, value);
                 case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount = Math.max(0, value);
+                case 27 -> BeeSXIControllerBlockEntity.this.uiExportBusCount = Math.max(0, value);
                 default -> {
                 }
             }
@@ -195,7 +199,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         @Override
         public int getCount() {
-            return 27;
+            return 28;
         }
     };
 
@@ -278,6 +282,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.uiAnalyzerCount = diagnostics.analyzerCount;
         this.uiPowerSupplyCount = diagnostics.powerSupplyCount;
         this.uiBatteryCount = diagnostics.batteryCount;
+        this.uiExportBusCount = diagnostics.exportBusCount;
         this.uiInvalidCount = diagnostics.invalidCount;
 
         StructureValidationResult result = diagnostics.result;
@@ -298,6 +303,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.powerSupplyPositions.addAll(result.powerSupplyPositions);
         this.batteryPositions.clear();
         this.batteryPositions.addAll(result.batteryPositions);
+        this.exportBusPositions.clear();
+        this.exportBusPositions.addAll(result.exportBusPositions);
         this.inventoryMaxPage = getMaxInventoryPage();
         if (this.inventoryPage > this.inventoryMaxPage) {
             this.inventoryPage = this.inventoryMaxPage;
@@ -322,7 +329,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private StructureDiagnostics collectStructureDiagnostics(Level level) {
         Set<BlockPos> component = collectConnectedStructureComponent(level);
         if (component.isEmpty()) {
-            return new StructureDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), List.of("No connected multiblock blocks found"));
+            return new StructureDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), List.of("No connected multiblock blocks found"));
         }
 
         BlockPos min = null;
@@ -345,7 +352,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             || sizeZ < MIN_MULTIBLOCK_DIM || sizeZ > MAX_MULTIBLOCK_DIM) {
             List<String> issues = new ArrayList<>();
             issues.add("Dimensions out of bounds: " + sizeX + "x" + sizeY + "x" + sizeZ + " (allowed " + MIN_MULTIBLOCK_DIM + "-" + MAX_MULTIBLOCK_DIM + ")");
-            return new StructureDiagnostics(sizeX, sizeY, sizeZ, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), issues);
+            return new StructureDiagnostics(sizeX, sizeY, sizeZ, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), issues);
         }
 
         return validateWithDiagnostics(level, min, sizeX, sizeY, sizeZ);
@@ -360,12 +367,14 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         int powerSupplies = 0;
         int batteries = 0;
         int hdds = 0;
+        int exportBuses = 0;
         int invalidBlocks = 0;
 
         List<String> issues = new ArrayList<>();
         List<BlockPos> foundHdds = new ArrayList<>();
         List<BlockPos> foundPowerSupplies = new ArrayList<>();
         List<BlockPos> foundBatteries = new ArrayList<>();
+        List<BlockPos> foundExportBuses = new ArrayList<>();
         List<BlockPos> structurePositions = new ArrayList<>(sizeX * sizeY * sizeZ);
 
         for (int x = 0; x < sizeX; x++) {
@@ -416,6 +425,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                             batteries++;
                             foundBatteries.add(scanPos.immutable());
                         }
+                        case EXPORT_BUS -> {
+                            exportBuses++;
+                            foundExportBuses.add(scanPos.immutable());
+                        }
                         case MOLECULAR_ANALYZER -> analyzers++;
                         case CASING -> casings++;
                     }
@@ -450,7 +463,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         boolean valid = issues.stream().noneMatch(issue -> !issue.startsWith("No BATTERY detected"));
         StructureValidationResult result = valid
-            ? new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, structurePositions)
+            ? new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, foundExportBuses, structurePositions)
             : StructureValidationResult.invalid();
 
         return new StructureDiagnostics(
@@ -465,6 +478,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             analyzers,
             powerSupplies,
             batteries,
+            exportBuses,
             invalidBlocks,
             result,
             issues
@@ -484,6 +498,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 + " analyzer=" + diagnostics.analyzerCount
                 + " power_supply=" + diagnostics.powerSupplyCount
                 + " battery=" + diagnostics.batteryCount
+                + " export_bus=" + diagnostics.exportBusCount
                 + " invalid=" + diagnostics.invalidCount
         ));
 
@@ -552,6 +567,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         List<BlockPos> foundHdds = new ArrayList<>();
         List<BlockPos> foundPowerSupplies = new ArrayList<>();
         List<BlockPos> foundBatteries = new ArrayList<>();
+        List<BlockPos> foundExportBuses = new ArrayList<>();
         List<BlockPos> structurePositions = new ArrayList<>(sizeX * sizeY * sizeZ);
 
         for (int x = 0; x < sizeX; x++) {
@@ -588,6 +604,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                         case HDD -> foundHdds.add(scanPos.immutable());
                         case POWER_SUPPLY -> foundPowerSupplies.add(scanPos.immutable());
                         case BATTERY -> foundBatteries.add(scanPos.immutable());
+                        case EXPORT_BUS -> foundExportBuses.add(scanPos.immutable());
                         case MOLECULAR_ANALYZER -> analyzers++;
                         case CASING -> {
                         }
@@ -608,11 +625,11 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             return StructureValidationResult.invalid();
         }
 
-        if (foundPowerSupplies.isEmpty() || foundBatteries.isEmpty()) {
+        if (foundPowerSupplies.isEmpty()) {
             return StructureValidationResult.invalid();
         }
 
-        return new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, structurePositions);
+        return new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, foundExportBuses, structurePositions);
     }
 
     private void resizeVirtualHives() {
@@ -998,6 +1015,15 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         ItemStack remaining = produced.copy();
 
+        for (BlockPos exportBusPos : this.exportBusPositions) {
+            if (remaining.isEmpty()) {
+                break;
+            }
+            if (this.level.getBlockEntity(exportBusPos) instanceof BeeSXIExportBusBlockEntity exportBus) {
+                remaining = exportBus.routeIncomingStack(remaining);
+            }
+        }
+
         for (BlockPos hddPos : this.hddPositions) {
             if (remaining.isEmpty()) {
                 break;
@@ -1346,6 +1372,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         return this.uiBatteryCount;
     }
 
+    public int getStructureExportBusCount() {
+        return this.uiExportBusCount;
+    }
+
     public int getStructureInvalidCount() {
         return this.uiInvalidCount;
     }
@@ -1356,6 +1386,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
     public long getPowerCapacityForUi() {
         return this.uiPowerCapacity;
+    }
+
+    public boolean isPartOfCurrentStructure(BlockPos pos) {
+        return this.assembledPositions.contains(pos);
     }
 
     public void markStructureDirty() {
@@ -1407,6 +1441,40 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             sync();
         }
         return removed;
+    }
+
+    public ItemStack extractStoredItem(ResourceLocation itemId, int amount) {
+        if (itemId == null || amount <= 0 || this.level == null) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack extracted = ItemStack.EMPTY;
+        int remaining = amount;
+        for (BlockPos hddPos : this.hddPositions) {
+            if (remaining <= 0) {
+                break;
+            }
+            if (!(this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd)) {
+                continue;
+            }
+
+            ItemStack fromDrive = hdd.extractByItemId(itemId, remaining);
+            if (fromDrive.isEmpty()) {
+                continue;
+            }
+
+            if (extracted.isEmpty()) {
+                extracted = fromDrive;
+            } else {
+                extracted.grow(fromDrive.getCount());
+            }
+            remaining -= fromDrive.getCount();
+        }
+
+        if (!extracted.isEmpty()) {
+            sync();
+        }
+        return extracted;
     }
 
     public int getHddBytesUsed(int slot) {
@@ -1523,6 +1591,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         tag.putInt("UiAnalyzerCount", this.uiAnalyzerCount);
         tag.putInt("UiPowerSupplyCount", this.uiPowerSupplyCount);
         tag.putInt("UiBatteryCount", this.uiBatteryCount);
+        tag.putInt("UiExportBusCount", this.uiExportBusCount);
         tag.putInt("UiInvalidCount", this.uiInvalidCount);
 
         ListTag analyzed = new ListTag();
@@ -1573,6 +1642,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             batteries.add(posTag);
         }
         tag.put("BatteryPositions", batteries);
+
+        ListTag exportBuses = new ListTag();
+        for (BlockPos exportBusPos : this.exportBusPositions) {
+            CompoundTag posTag = new CompoundTag();
+            posTag.putInt("X", exportBusPos.getX());
+            posTag.putInt("Y", exportBusPos.getY());
+            posTag.putInt("Z", exportBusPos.getZ());
+            exportBuses.add(posTag);
+        }
+        tag.put("ExportBusPositions", exportBuses);
     }
 
     @Override
@@ -1611,6 +1690,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.uiAnalyzerCount = Math.max(0, tag.getInt("UiAnalyzerCount"));
         this.uiPowerSupplyCount = Math.max(0, tag.getInt("UiPowerSupplyCount"));
         this.uiBatteryCount = Math.max(0, tag.getInt("UiBatteryCount"));
+        this.uiExportBusCount = Math.max(0, tag.getInt("UiExportBusCount"));
         this.uiInvalidCount = Math.max(0, tag.getInt("UiInvalidCount"));
 
         this.analyzedSpecies.clear();
@@ -1666,6 +1746,13 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         for (int i = 0; i < batteries.size(); i++) {
             CompoundTag posTag = batteries.getCompound(i);
             this.batteryPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
+        }
+
+        this.exportBusPositions.clear();
+        ListTag exportBuses = tag.getList("ExportBusPositions", Tag.TAG_COMPOUND);
+        for (int i = 0; i < exportBuses.size(); i++) {
+            CompoundTag posTag = exportBuses.getCompound(i);
+            this.exportBusPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
         }
 
         this.assembledPositions.clear();
@@ -1772,9 +1859,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         final List<BlockPos> hddPositions;
         final List<BlockPos> powerSupplyPositions;
         final List<BlockPos> batteryPositions;
+        final List<BlockPos> exportBusPositions;
         final List<BlockPos> structurePositions;
 
-        private StructureValidationResult(boolean valid, int cpus, int rams, boolean hasAnalyzer, List<BlockPos> hddPositions, List<BlockPos> powerSupplyPositions, List<BlockPos> batteryPositions, List<BlockPos> structurePositions) {
+        private StructureValidationResult(boolean valid, int cpus, int rams, boolean hasAnalyzer, List<BlockPos> hddPositions, List<BlockPos> powerSupplyPositions, List<BlockPos> batteryPositions, List<BlockPos> exportBusPositions, List<BlockPos> structurePositions) {
             this.valid = valid;
             this.cpus = cpus;
             this.rams = rams;
@@ -1782,11 +1870,12 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             this.hddPositions = hddPositions;
             this.powerSupplyPositions = powerSupplyPositions;
             this.batteryPositions = batteryPositions;
+            this.exportBusPositions = exportBusPositions;
             this.structurePositions = structurePositions;
         }
 
         static StructureValidationResult invalid() {
-            return new StructureValidationResult(false, 0, 0, false, List.of(), List.of(), List.of(), List.of());
+            return new StructureValidationResult(false, 0, 0, false, List.of(), List.of(), List.of(), List.of(), List.of());
         }
     }
 
@@ -1802,11 +1891,12 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         final int analyzerCount;
         final int powerSupplyCount;
         final int batteryCount;
+        final int exportBusCount;
         final int invalidCount;
         final StructureValidationResult result;
         final List<String> issues;
 
-        private StructureDiagnostics(int dimX, int dimY, int dimZ, int controllerCount, int casingCount, int cpuCount, int ramCount, int hddCount, int analyzerCount, int powerSupplyCount, int batteryCount, int invalidCount, StructureValidationResult result, List<String> issues) {
+        private StructureDiagnostics(int dimX, int dimY, int dimZ, int controllerCount, int casingCount, int cpuCount, int ramCount, int hddCount, int analyzerCount, int powerSupplyCount, int batteryCount, int exportBusCount, int invalidCount, StructureValidationResult result, List<String> issues) {
             this.dimX = dimX;
             this.dimY = dimY;
             this.dimZ = dimZ;
@@ -1818,6 +1908,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             this.analyzerCount = analyzerCount;
             this.powerSupplyCount = powerSupplyCount;
             this.batteryCount = batteryCount;
+            this.exportBusCount = exportBusCount;
             this.invalidCount = invalidCount;
             this.result = result;
             this.issues = issues;

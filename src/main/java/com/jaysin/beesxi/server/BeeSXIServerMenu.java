@@ -287,6 +287,10 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.data.get(26);
     }
 
+    public int getStructureExportBusCount() {
+        return this.data.get(27);
+    }
+
     public java.util.List<ResourceLocation> getAnalyzedSpeciesIds() {
         return this.controller.getAnalyzedSpeciesIds();
     }

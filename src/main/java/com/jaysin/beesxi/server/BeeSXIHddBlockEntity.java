@@ -166,6 +166,20 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
         return new ItemStack(itemHolder, removed);
     }
 
+    public ItemStack extractByItemId(ResourceLocation id, int amount) {
+        if (id == null || amount <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        List<ResourceLocation> types = getOrderedTypes();
+        int slot = types.indexOf(id);
+        if (slot < 0) {
+            return ItemStack.EMPTY;
+        }
+
+        return extractStack(slot, amount);
+    }
+
     private List<ResourceLocation> getOrderedTypes() {
         return new ArrayList<>(this.itemCounts.keySet());
     }
