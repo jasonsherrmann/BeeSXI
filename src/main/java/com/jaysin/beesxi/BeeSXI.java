@@ -51,13 +51,21 @@ public class BeeSXI {
 
     
     public static final DeferredBlock<Block> BEESXI_CONTROLLER = BLOCKS.register("beesxi_controller",
-        () -> new BeeSXIControllerBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0F, 10.0F)));
+        () -> new BeeSXIControllerBlock(BlockBehaviour.Properties.of()
+        .mapColor(MapColor.METAL)
+        .strength(4.0F, 3600000.0F)
+        .lightLevel(state -> state.getValue(BeeSXIControllerBlock.ASSEMBLED) ? 7 : 0)
+        .isValidSpawn((state, getter, pos, entityType) -> false)));
     public static final DeferredBlock<Block> BEESXI_CPU = BLOCKS.register("beesxi_cpu",
         () -> new BeeSXIPartBlock(BeeSXIPartType.CPU, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
     public static final DeferredBlock<Block> BEESXI_RAM = BLOCKS.register("beesxi_ram",
         () -> new BeeSXIPartBlock(BeeSXIPartType.RAM, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
     public static final DeferredBlock<Block> BEESXI_HDD = BLOCKS.register("beesxi_hdd",
-        () -> new BeeSXIHddBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
+        () -> new BeeSXIHddBlock(BlockBehaviour.Properties.of()
+        .mapColor(MapColor.METAL)
+        .strength(3.0F, 3600000.0F)
+        .lightLevel(state -> state.getValue(BeeSXIControllerBlock.ASSEMBLED) ? 7 : 0)
+        .isValidSpawn((state, getter, pos, entityType) -> false)));
     public static final DeferredBlock<Block> BEESXI_CASING = BLOCKS.register("beesxi_casing",
         () -> new BeeSXIPartBlock(BeeSXIPartType.CASING, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.5F, 8.0F)));
     public static final DeferredBlock<Block> MOLECULAR_ANALYZER = BLOCKS.register("molecular_analyzer",

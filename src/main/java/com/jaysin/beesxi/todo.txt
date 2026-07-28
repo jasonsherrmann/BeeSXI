@@ -7,10 +7,10 @@ remove debug button presses from log
 Make machine stop if inventories are full
 Balance the production values
 Make sure production percentages are accurate
-Export from analysis tab to some item that can be analyzed quickly by another analyzer?
 Make a debug item that unlocks all species
 make multiblock blocks blast proof, non spawnable for wandering trader/mobs 
 bring back old hdd and call it a storage drawer? 
+make sure Controller,export bus drop items when destroyed
 
 ======================
 Broken
