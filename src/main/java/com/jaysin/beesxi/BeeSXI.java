@@ -54,7 +54,7 @@ public class BeeSXI {
         () -> new BeeSXIControllerBlock(BlockBehaviour.Properties.of()
         .mapColor(MapColor.METAL)
         .strength(4.0F, 3600000.0F)
-        .lightLevel(state -> state.getValue(BeeSXIControllerBlock.ASSEMBLED) ? 7 : 0)
+        .lightLevel(state -> state.getValue(BeeSXIControllerBlock.ASSEMBLED) ? 9 : 0)
         .isValidSpawn((state, getter, pos, entityType) -> false)));
     public static final DeferredBlock<Block> BEESXI_CPU = BLOCKS.register("beesxi_cpu",
         () -> new BeeSXIPartBlock(BeeSXIPartType.CPU, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
@@ -64,7 +64,7 @@ public class BeeSXI {
         () -> new BeeSXIHddBlock(BlockBehaviour.Properties.of()
         .mapColor(MapColor.METAL)
         .strength(3.0F, 3600000.0F)
-        .lightLevel(state -> state.getValue(BeeSXIControllerBlock.ASSEMBLED) ? 7 : 0)
+        .lightLevel(state -> state.getValue(BeeSXIHddBlock.ASSEMBLED) ? 9 : 0)
         .isValidSpawn((state, getter, pos, entityType) -> false)));
     public static final DeferredBlock<Block> BEESXI_CASING = BLOCKS.register("beesxi_casing",
         () -> new BeeSXIPartBlock(BeeSXIPartType.CASING, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.5F, 8.0F)));

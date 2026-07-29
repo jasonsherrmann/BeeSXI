@@ -70,7 +70,9 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private static final long RF_PER_TICK_RAM = 0L;
     private static final long RF_PER_TICK_CONTROLLER = 0L;
     private static final ResourceLocation DEFAULT_UNLOCKED_SPECIES = ResourceLocation.fromNamespaceAndPath("forestry", "forest");
-    private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL);
+    private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL, ForestryActivityTypes.CATHEMERAL);
+    private static final Set<ResourceLocation> FULL_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.METATURNAL);
+    private static final Set<ResourceLocation> ONE_TWELFTH_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.CREPUSCULAR);
     private static final int[][] CARDINAL_DIRECTIONS = {
         {1, 0, 0}, {-1, 0, 0},
         {0, 1, 0}, {0, -1, 0},
@@ -965,7 +967,13 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             double activityMultiplier = 1.0D;
             if (traits != null && traits.activityTypeId != null && HALF_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
                 activityMultiplier = 0.5D;
-            } //Fix this code to make it more intuative
+            } 
+            if (traits != null && traits.activityTypeId != null && FULL_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
+                activityMultiplier = 1.0D;
+            }
+            if (traits != null && traits.activityTypeId != null && ONE_TWELFTH_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
+                activityMultiplier = 1.0D / 12.0D;
+            } 
 
             for (int i = 0; i < config.instances; i++) {
                 produceForSpecies(species, level, activityMultiplier);

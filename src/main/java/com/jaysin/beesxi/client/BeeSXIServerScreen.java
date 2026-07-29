@@ -22,7 +22,7 @@ import forestry.api.core.IProduct;
 import forestry.core.utils.SpeciesUtil;
 
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
-    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu.png");
+    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu_new.png");
 
     private static final int VISIBLE_LINES = 6;
     private static final int LINE_HEIGHT = 18;
@@ -49,8 +49,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         this.imageWidth = 400;
         this.imageHeight = 267;
         this.inventoryLabelY = 155;
-        this.titleLabelX = 10;
-        this.titleLabelY = 5;
+        this.titleLabelX = 8;
+        this.titleLabelY = 6;
     }
 
     @Override
@@ -61,22 +61,22 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         int y = this.topPos;
 
         this.analysisTabButton = this.addRenderableWidget(Button.builder(Component.literal("Analysis"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_ANALYSIS))
-            .bounds(x + 8, y + 42, 68, 20)
+            .bounds(x + 3, y + 42, 68, 20)
             .build());
         this.tabButtons.add(this.analysisTabButton);
 
         this.virtualTabButton = this.addRenderableWidget(Button.builder(Component.literal("Virtual Hives"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES))
-            .bounds(x + 8, y + 66, 68, 20)
+            .bounds(x + 3, y + 66, 68, 20)
             .build());
         this.tabButtons.add(this.virtualTabButton);
 
         this.inventoryTabButton = this.addRenderableWidget(Button.builder(Component.literal("Inventory"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_INVENTORY))
-            .bounds(x + 8, y + 90, 68, 20)
+            .bounds(x + 3, y + 90, 68, 20)
             .build());
         this.tabButtons.add(this.inventoryTabButton);
 
         this.infoTabButton = this.addRenderableWidget(Button.builder(Component.literal("Info"), b -> pressMenuButton(BeeSXIControllerBlockEntity.TAB_INFO))
-            .bounds(x + 8, y + 114, 68, 20)
+            .bounds(x + 3, y + 114, 68, 20)
             .build());
         this.tabButtons.add(this.infoTabButton);
 
@@ -158,7 +158,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         int stateColor = this.menu.isFormed() ? 0x000000 : 0xF0A0A0;
         String stateText = this.menu.isFormed() ? "Structure: Formed" : "Structure: Incomplete";
         int stateX = this.leftPos + this.imageWidth - this.font.width(stateText) - 8;
-        guiGraphics.drawString(this.font, stateText, stateX, this.topPos + 5, stateColor, false);
+        guiGraphics.drawString(this.font, stateText, stateX, this.topPos + 2, stateColor, false);
 
         long powerStored = this.menu.getPowerStoredForUi();
         long powerCap = this.menu.getPowerCapacityForUi();
@@ -167,8 +167,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         long analyzeRfPerTick = this.menu.getAnalyzeRfPerTickForUi();
         String powerText = "Power: " + powerStored + " / " + powerCap + " RF";
         String usageText = "Usage: " + totalRfPerTick + " RF/t (Instances " + instanceRfPerTick + ", Analysis " + analyzeRfPerTick + ")";
-        guiGraphics.drawString(this.font, powerText, this.leftPos + 118, this.topPos + 5, 0x000000, false);
-        guiGraphics.drawString(this.font, usageText, this.leftPos + 118, this.topPos + 14, 0x000000, false);
+        guiGraphics.drawString(this.font, powerText, this.leftPos + 118, this.topPos + 2, 0x000000, false);
+        guiGraphics.drawString(this.font, usageText, this.leftPos + 118, this.topPos + 11, 0x000000, false);
 
         if (tab == BeeSXIControllerBlockEntity.TAB_ANALYSIS) {
             renderAnalysisTab(guiGraphics, mouseX, mouseY);
@@ -235,7 +235,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             float speed = this.menu.getSpeedForSpecies(speciesId);
             ResourceLocation activityId = this.menu.getActivityForSpecies(speciesId);
             String activity = activityId == null ? "unknown" : activityId.getPath();
-            String traitLine = trim(speciesId.toString(), 24) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + trim(activity, 10);
+            String traitLine = trim(speciesId.toString(), 24) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + trim(activity, 20);
             guiGraphics.drawString(this.font, traitLine, this.leftPos + 108, this.topPos + 76 + i * 10, 0x000000, false);
         }
 
@@ -256,7 +256,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             start = this.linePage * VISIBLE_LINES;
         }
 
-        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount*512 + "Tb ", this.leftPos + 108, this.topPos + 20, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount*512 + "Tb ", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
 
         int rowBackground = 0x55262f3b;
 
@@ -344,7 +344,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryTab(GuiGraphics guiGraphics) {
-        guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 20, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
         guiGraphics.drawString(this.font, "Slots are linked to HDD blocks in this multiblock", this.leftPos + 108, this.topPos + 98, 0x000000, false);
         int page = this.menu.getInventoryPage() + 1;
         int maxPage = this.menu.getInventoryMaxPage() + 1;
@@ -441,6 +441,17 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             return value;
         }
         return value.substring(0, maxChars - 3) + "...";
+    }
+    @Override
+    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        
+        
+        // Draw the container name (e.g., bright yellow)
+        // 0xFFFFFF is white, 0xFFD700 is gold/yellow
+        guiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 0xFFFFFF, false);
+        
+        // Draw the player inventory text (e.g., light gray)
+        //guiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.inventoryLabelY, 0xAAAAAA, false);
     }
 
 }
