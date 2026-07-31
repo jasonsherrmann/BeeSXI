@@ -6,6 +6,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.screen.BeeSXIExportBusScreen;
+import com.jaysin.beesxi.screen.BeeSXIServerScreen;
 
 @EventBusSubscriber(modid = BeeSXI.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ClientModEvents {

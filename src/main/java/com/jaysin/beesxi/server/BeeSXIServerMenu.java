@@ -14,6 +14,7 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 
 public class BeeSXIServerMenu extends AbstractContainerMenu {
     private static final int NETWORK_SLOT_COUNT = 27;
@@ -149,7 +150,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
         @Override
         public ItemStack getItem() {
-            return BeeSXIServerMenu.this.controller.getHddNetworkItem(getAbsoluteIndex());
+            return BeeSXIServerMenu.this.controller.getHddNetworkItem(this.networkIndex);
         }
 
         @Override
@@ -159,13 +160,13 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
         @Override
         public void set(ItemStack stack) {
-            BeeSXIServerMenu.this.controller.setHddNetworkItem(getAbsoluteIndex(), stack);
+            BeeSXIServerMenu.this.controller.setHddNetworkItem(this.networkIndex, stack);
             this.setChanged();
         }
 
         @Override
         public ItemStack remove(int amount) {
-            return BeeSXIServerMenu.this.controller.extractHddNetworkItem(getAbsoluteIndex(), amount);
+            return BeeSXIServerMenu.this.controller.extractHddNetworkItem(this.networkIndex, amount);
         }
 
         @Override
@@ -176,10 +177,6 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         @Override
         public boolean mayPickup(Player player) {
             return isActive();
-        }
-
-        private int getAbsoluteIndex() {
-            return BeeSXIServerMenu.this.getInventoryPage() * NETWORK_SLOT_COUNT + this.networkIndex;
         }
     }
 
@@ -295,12 +292,25 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.controller.getAnalyzedSpeciesIds();
     }
 
+    public java.util.List<ResourceLocation> getUnlockedBiomeIds() {
+        return this.controller.getUnlockedBiomeIds();
+    }
+
+    public java.util.List<ResourceLocation> getUnlockedFlowerIds() {
+        return this.controller.getUnlockedFlowerIds();
+    }
+
     public java.util.List<BeeSXIControllerBlockEntity.VirtualHiveConfig> getVirtualHives() {
         return this.controller.getVirtualHives();
     }
 
     public ItemStack getHddNetworkItem(int slot) {
         return this.controller.getHddNetworkItem(slot);
+    }
+
+    @Nullable
+    public BlockPos getInventoryPageHddPos() {
+        return this.controller.getHddPosForPage(getInventoryPage());
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
@@ -339,6 +349,24 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
             return 0;
         }
         return hives.get(line).instances;
+    }
+
+    @Nullable
+    public ResourceLocation getBiomeForLine(int line) {
+        var hives = getVirtualHives();
+        if (line < 0 || line >= hives.size()) {
+            return null;
+        }
+        return hives.get(line).biomeId;
+    }
+
+    @Nullable
+    public ResourceLocation getFlowerForLine(int line) {
+        var hives = getVirtualHives();
+        if (line < 0 || line >= hives.size()) {
+            return null;
+        }
+        return hives.get(line).flowerItemId;
     }
 
     public float getSpeedForLine(int line) {

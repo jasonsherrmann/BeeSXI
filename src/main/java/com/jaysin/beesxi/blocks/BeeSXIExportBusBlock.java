@@ -1,4 +1,4 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blocks;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,6 +16,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blockentity.BeeSXIExportBusBlockEntity;
+import com.jaysin.beesxi.server.BeeSXIPartType;
 
 public class BeeSXIExportBusBlock extends BeeSXIPartBlock implements EntityBlock {
     public BeeSXIExportBusBlock(Properties properties) {

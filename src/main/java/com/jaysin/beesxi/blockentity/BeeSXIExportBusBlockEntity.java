@@ -1,4 +1,4 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blockentity;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.IItemHandler;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
 
 public class BeeSXIExportBusBlockEntity extends BlockEntity implements Container, net.minecraft.world.MenuProvider {
     public static final int INVENTORY_SIZE = 27;
@@ -206,6 +207,14 @@ public class BeeSXIExportBusBlockEntity extends BlockEntity implements Container
         }
         ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
         return id != null && getWhitelistItemIds().contains(id);
+    }
+
+    public boolean canAcceptIncomingStack(ItemStack stack) {
+        if (stack.isEmpty() || !matchesWhitelist(stack)) {
+            return false;
+        }
+        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id != null && getAvailableSpaceFor(id) > 0;
     }
 
     private void pullFromController(BeeSXIControllerBlockEntity controller) {

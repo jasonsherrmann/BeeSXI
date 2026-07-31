@@ -9,12 +9,23 @@ Make machine stop if inventories are full
 Balance the production values
 Make sure production percentages are accurate
 Make a debug item that unlocks all species
-bring back old hdd and call it a storage drawer? 
 make sure Controller,export bus drop items when destroyed
 Fix activity types https://github.com/thedarkcolour/ForestryCE/blob/50c914c5e239cf17c99d6cea2563e432406d639b/src/main/java/forestry/api/apiculture/ForestryActivityTypes.java#L30
-QA check analyzer 
-get rid of shadow bee on analyser when a bee is in the slot
+QA check analyzer (shouldnt analyze already analyzed bees)
+get rid of or move shadow bee on analyser when a bee is in the slot
 Fix analyzer wording, should be something like Component dependencyItemName = Component.translatable("item.othermod.some_item");
+Shouldnt be able to hopper into controller? 
+Shouldnt be able to hopper into or out of HDD
+Have bees in vHive tab be analysed
+pull bee into controller inventory while analyzing
+remove stacking in analyze inventory
+Inventory tab only shows the first 27 items
+change stack size on analyzer,weatherreporter, 
+Analyzer gets the block name AND tag now, only tag work for some blocks, others (coral, grass)
+Controller now gets the biome its in for free
+scanning bees adds flower types
+reduce whitelist size
+
 
 ======================
 Broken
@@ -43,9 +54,8 @@ Nice to haves
 Create good graphics, probably animated, directional, multiple states
 Custom models
 Analyzer shows what bee is being analyzed (would need to be a block entity with an inventory etc)
-Make the machine make noise when its running
+Make the machine make noise when its running, powered on, powered off etc
 Turn off when redstone connected? new block, and a stop button in the gui
 Additional tiers of CPU/RAM/HDD
-controller, analyzer and drives should be light emitting probably
 Allow more than one analyzer?
 Make the multiblock load the chunks its in? what if its split over the chunk line?

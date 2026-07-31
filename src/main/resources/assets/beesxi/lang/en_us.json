@@ -6,6 +6,7 @@
   "block.beesxi.beesxi_hdd": "BeeSXI HDD",
   "block.beesxi.beesxi_casing": "BeeSXI Casing",
   "block.beesxi.beesxi_export_bus": "BeeSXI Export Bus",
+  "block.beesxi.beesxi_weather_reporter": "BeeSXI Weather Reporter",
   "block.beesxi.molecular_analyzer": "Molecular Analyzer",
   "menu.beesxi.beesxi_server": "BeeSXI Server",
   "menu.beesxi.beesxi_export_bus": "BeeSXI Export Bus",

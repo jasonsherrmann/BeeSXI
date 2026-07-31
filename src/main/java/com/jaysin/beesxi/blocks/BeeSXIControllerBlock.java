@@ -1,4 +1,4 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blocks;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 
 public class BeeSXIControllerBlock extends Block implements EntityBlock {
     public static final BooleanProperty ASSEMBLED = BooleanProperty.create("assembled");

@@ -1,4 +1,4 @@
-package com.jaysin.beesxi.client;
+package com.jaysin.beesxi.screen;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

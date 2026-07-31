@@ -11,6 +11,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blockentity.BeeSXIExportBusBlockEntity;
 
 public class BeeSXIExportBusMenu extends AbstractContainerMenu {
     private static final int INVENTORY_SLOTS = BeeSXIExportBusBlockEntity.INVENTORY_SIZE;

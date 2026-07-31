@@ -1,4 +1,4 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -8,6 +8,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
+import com.jaysin.beesxi.server.BeeSXIPartType;
 
 public class BeeSXIPowerSupplyBlockEntity extends BlockEntity {
     private static final int POWER_SUPPLY_CAPACITY = 1_000_000;

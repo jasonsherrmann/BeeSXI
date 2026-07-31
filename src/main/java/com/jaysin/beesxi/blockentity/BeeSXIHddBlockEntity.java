@@ -1,6 +1,7 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blockentity;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,8 +22,8 @@ import com.jaysin.beesxi.BeeSXI;
 
 public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
     private static final int SIZE = 27;
-    private static final int DEFAULT_TOTAL_BYTES = 1024;
-    private static final int MAX_TYPES = 63;
+    private static final int DEFAULT_TOTAL_BYTES = 8192; //1024 too low, 32768 is 32kB is too high, but it's a good starting point for testing.
+    private static final int MAX_TYPES = 27;
     private static final int ITEMS_PER_BYTE = 8;
 
     public enum StorageState {
@@ -133,6 +134,19 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
         return remainder;
     }
 
+    public boolean canAcceptStack(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+
+        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (id == null) {
+            return false;
+        }
+
+        return getRemainingCapacityFor(id) > 0;
+    }
+
     public ItemStack extractStack(int slot, int amount) {
         if (amount <= 0 || slot < 0 || slot >= SIZE) {
             return ItemStack.EMPTY;
@@ -181,7 +195,9 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
     }
 
     private List<ResourceLocation> getOrderedTypes() {
-        return new ArrayList<>(this.itemCounts.keySet());
+        List<ResourceLocation> ordered = new ArrayList<>(this.itemCounts.keySet());
+        ordered.sort(Comparator.comparing(ResourceLocation::toString));
+        return ordered;
     }
 
     @Override

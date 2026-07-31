@@ -1,7 +1,10 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blocks;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.jaysin.beesxi.blockentity.BeeSXIPowerSupplyBlockEntity;
+import com.jaysin.beesxi.server.BeeSXIPartType;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.EntityBlock;

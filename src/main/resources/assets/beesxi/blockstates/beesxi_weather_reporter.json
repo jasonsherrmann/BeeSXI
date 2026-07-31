@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "beesxi:block/beesxi_weather_reporter"
+    }
+  }
+}

@@ -26,17 +26,19 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-import com.jaysin.beesxi.server.BeeSXIControllerBlock;
-import com.jaysin.beesxi.server.BeeSXIControllerBlockEntity;
-import com.jaysin.beesxi.server.BeeSXIExportBusBlock;
-import com.jaysin.beesxi.server.BeeSXIExportBusBlockEntity;
+import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
+import com.jaysin.beesxi.blockentity.BeeSXIExportBusBlockEntity;
+import com.jaysin.beesxi.blockentity.BeeSXIHddBlockEntity;
+import com.jaysin.beesxi.blockentity.BeeSXIPowerSupplyBlockEntity;
+import com.jaysin.beesxi.blockentity.BeeSXIWeatherReporterBlockEntity;
+import com.jaysin.beesxi.blocks.BeeSXIControllerBlock;
+import com.jaysin.beesxi.blocks.BeeSXIExportBusBlock;
+import com.jaysin.beesxi.blocks.BeeSXIHddBlock;
+import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
+import com.jaysin.beesxi.blocks.BeeSXIPowerBlock;
+import com.jaysin.beesxi.blocks.BeeSXIWeatherReporterBlock;
 import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
-import com.jaysin.beesxi.server.BeeSXIHddBlock;
-import com.jaysin.beesxi.server.BeeSXIHddBlockEntity;
-import com.jaysin.beesxi.server.BeeSXIPartBlock;
 import com.jaysin.beesxi.server.BeeSXIPartType;
-import com.jaysin.beesxi.server.BeeSXIPowerBlock;
-import com.jaysin.beesxi.server.BeeSXIPowerSupplyBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 
 @Mod(BeeSXI.MODID)
@@ -76,6 +78,8 @@ public class BeeSXI {
         () -> new BeeSXIPowerBlock(BeeSXIPartType.BATTERY, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
     public static final DeferredBlock<Block> BEESXI_EXPORT_BUS = BLOCKS.register("beesxi_export_bus",
         () -> new BeeSXIExportBusBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
+    public static final DeferredBlock<Block> BEESXI_WEATHER_REPORTER = BLOCKS.register("beesxi_weather_reporter",
+        () -> new BeeSXIWeatherReporterBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIControllerBlockEntity>> BEESXI_CONTROLLER_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("beesxi_controller",
@@ -92,6 +96,9 @@ public class BeeSXI {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIExportBusBlockEntity>> BEESXI_EXPORT_BUS_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("beesxi_export_bus",
             () -> BlockEntityType.Builder.of(BeeSXIExportBusBlockEntity::new, BEESXI_EXPORT_BUS.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIWeatherReporterBlockEntity>> BEESXI_WEATHER_REPORTER_BLOCK_ENTITY =
+        BLOCK_ENTITIES.register("beesxi_weather_reporter",
+            () -> BlockEntityType.Builder.of(BeeSXIWeatherReporterBlockEntity::new, BEESXI_WEATHER_REPORTER.get()).build(null));
 
     public static final DeferredHolder<MenuType<?>, MenuType<BeeSXIServerMenu>> BEESXI_SERVER_MENU =
         MENUS.register("beesxi_server", () -> IMenuTypeExtension.create(BeeSXIServerMenu::fromNetwork));
@@ -107,8 +114,15 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_BATTERY_ITEM = ITEMS.register("beesxi_battery", () -> new BlockItem(BEESXI_BATTERY.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_EXPORT_BUS_ITEM = ITEMS.register("beesxi_export_bus", () -> new BlockItem(BEESXI_EXPORT_BUS.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_WEATHER_REPORTER_ITEM = ITEMS.register("beesxi_weather_reporter", () -> new BlockItem(BEESXI_WEATHER_REPORTER.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> CAPACITOR_EMPTY = ITEMS.register("capacitor_empty", () -> new Item(new Item.Properties()));
-    public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled", () -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)));
+    public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled",
+        () -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)){
+            @Override
+            public boolean isFoil(ItemStack stack) {
+                return true;
+            }
+        });
     
 
 
@@ -126,6 +140,7 @@ public class BeeSXI {
                 output.accept(BEESXI_POWER_SUPPLY_ITEM.get());
                 output.accept(BEESXI_BATTERY_ITEM.get());
                 output.accept(BEESXI_EXPORT_BUS_ITEM.get());
+                output.accept(BEESXI_WEATHER_REPORTER_ITEM.get());
                 output.accept(CAPACITOR_EMPTY.get());
                 output.accept(CAPACITOR_FILLED.get());
                  

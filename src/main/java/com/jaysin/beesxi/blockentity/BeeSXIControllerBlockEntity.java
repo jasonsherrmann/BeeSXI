@@ -1,6 +1,9 @@
-package com.jaysin.beesxi.server;
+package com.jaysin.beesxi.blockentity;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +24,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
@@ -28,13 +32,21 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.tags.TagKey;
+import net.minecraft.core.registries.Registries;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blocks.BeeSXIControllerBlock;
+import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
+import com.jaysin.beesxi.server.BeeSXIPartType;
+import com.jaysin.beesxi.server.BeeSXIServerMenu;
 
 import forestry.api.apiculture.genetics.IBeeSpecies;
 import forestry.api.apiculture.ForestryActivityTypes;
@@ -55,6 +67,9 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     public static final int TAB_VIRTUAL_HIVES = 1;
     public static final int TAB_INVENTORY = 2;
     public static final int TAB_INFO = 3;
+    public static final int TAB_BEE_SPECIES = 4;
+    public static final int TAB_FLOWERS = 5;
+    public static final int TAB_BIOMES = 6;
 
     private static final int SIZE = 1;
     private static final int NETWORK_SLOT_PAGE_SIZE = 27;
@@ -65,6 +80,11 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private static final int ANALYZE_DURATION_TICKS = 20 * 60 * 5;
     private static final long ANALYZE_RF_COST = 10_000_000L;
     private static final String PAPER_SPECIES_KEY = "BeeSXIAnalyzedSpecies";
+    private static final String PAPER_BIOMES_KEY = "BeeSXIUnlockedBiomes";
+    private static final String PAPER_FLOWERS_KEY = "BeeSXIUnlockedFlowers";
+    private static final String PAPER_ALLELES_KEY = "BeeSXIAlleles";
+    private static final String WEATHER_BIOME_KEY = "BeeSXIWeatherReportBiome";
+    private static final TagKey<Block> FORESTRY_FLOWERS_ROOT_TAG = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("forestry", "flowers"));
     private static final long RF_PER_TICK_INSTANCE = 100L;
     private static final long RF_PER_TICK_CPU = 0L;
     private static final long RF_PER_TICK_RAM = 0L;
@@ -81,6 +101,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
     private final Map<ResourceLocation, AnalyzedBeeTraits> analyzedSpecies = new LinkedHashMap<>();
+    private final Set<ResourceLocation> unlockedBiomes = new HashSet<>();
+    private final Set<ResourceLocation> unlockedFlowers = new HashSet<>();
     private final List<VirtualHiveConfig> virtualHives = new ArrayList<>();
     private final List<BlockPos> hddPositions = new ArrayList<>();
     private final List<BlockPos> powerSupplyPositions = new ArrayList<>();
@@ -101,6 +123,9 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private ResourceLocation pendingAnalyzeSpeciesId;
     private float pendingAnalyzeSpeed;
     private ResourceLocation pendingAnalyzeActivityId;
+    private ResourceLocation pendingAnalyzeBiomeId;
+    private ResourceLocation pendingAnalyzeFlowerId;
+    private Map<String, String> pendingAnalyzeAlleles = Map.of();
     private long lastSyncedPowerStored = Long.MIN_VALUE;
     private long lastSyncedPowerCapacity = Long.MIN_VALUE;
     private int lastSyncedAnalyzeProgress = Integer.MIN_VALUE;
@@ -214,16 +239,231 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.analyzedSpecies.putIfAbsent(DEFAULT_UNLOCKED_SPECIES, resolveSpeciesDefaults(DEFAULT_UNLOCKED_SPECIES));
     }
 
+    private boolean isFlowerItem(ItemStack stack) {
+        return getForestryFlowerIdFromStack(stack) != null;
+    }
+
+    private ResourceLocation getForestryFlowerIdFromStack(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem blockItem)) {
+            return null;
+        }
+
+        BlockState state = blockItem.getBlock().defaultBlockState();
+        boolean isForestryFlower = state.is(FORESTRY_FLOWERS_ROOT_TAG)
+            || state.getTags().anyMatch(tag -> tag.location().getNamespace().equals("forestry") && tag.location().getPath().startsWith("flowers/"));
+        if (!isForestryFlower) {
+            return null;
+        }
+
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(blockItem.getBlock());
+    }
+
+    private ResourceLocation getCurrentBiomeId() {
+        if (this.level == null) {
+            return null;
+        }
+        return this.level.getBiome(this.worldPosition)
+            .unwrapKey()
+            .map(ResourceKey::location)
+            .orElse(null);
+    }
+
+    private Map<String, String> extractAlleles(IGenome genome) {
+        if (genome == null) {
+            return Map.of();
+        }
+
+        Map<String, String> alleles = new HashMap<>();
+        for (java.lang.reflect.Field field : BeeChromosomes.class.getFields()) {
+            Object chromosome;
+            try {
+                chromosome = field.get(null);
+            } catch (IllegalAccessException ignored) {
+                continue;
+            }
+
+            if (chromosome == null) {
+                continue;
+            }
+
+            Object value = invokeGenomeActiveValue(genome, chromosome);
+            if (value == null) {
+                continue;
+            }
+            alleles.put(field.getName().toLowerCase(java.util.Locale.ROOT), value.toString());
+        }
+        return alleles;
+    }
+
+    private Object invokeGenomeActiveValue(IGenome genome, Object chromosome) {
+        for (java.lang.reflect.Method method : genome.getClass().getMethods()) {
+            if (!"getActiveValue".equals(method.getName()) || method.getParameterCount() != 1) {
+                continue;
+            }
+            if (!method.getParameterTypes()[0].isAssignableFrom(chromosome.getClass())) {
+                continue;
+            }
+            try {
+                return method.invoke(genome, chromosome);
+            } catch (ReflectiveOperationException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private ResourceLocation findFlowerFromAlleles(Map<String, String> alleles) {
+        for (Map.Entry<String, String> entry : alleles.entrySet()) {
+            if (!entry.getKey().contains("flower")) {
+                continue;
+            }
+            ResourceLocation parsed = ResourceLocation.tryParse(entry.getValue());
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    private boolean isCompatibleFlower(@javax.annotation.Nullable ResourceLocation selectedFlowerId, @javax.annotation.Nullable ResourceLocation requiredFlowerId) {
+        if (selectedFlowerId == null || requiredFlowerId == null) {
+            return false;
+        }
+        if (requiredFlowerId.equals(selectedFlowerId)) {
+            return true;
+        }
+
+        Block selectedBlock = resolveFlowerBlock(selectedFlowerId);
+        Block requiredBlock = resolveFlowerBlock(requiredFlowerId);
+
+        if (selectedBlock != null && requiredBlock != null) {
+            return selectedBlock == requiredBlock;
+        }
+
+        List<TagKey<Block>> selectedTags = getCandidateFlowerTags(selectedFlowerId);
+        List<TagKey<Block>> requiredTags = getCandidateFlowerTags(requiredFlowerId);
+
+        if (selectedBlock != null) {
+            for (TagKey<Block> requiredTag : requiredTags) {
+                if (selectedBlock.defaultBlockState().is(requiredTag)) {
+                    return true;
+                }
+            }
+        }
+
+        if (requiredBlock != null) {
+            for (TagKey<Block> selectedTag : selectedTags) {
+                if (requiredBlock.defaultBlockState().is(selectedTag)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static Block resolveFlowerBlock(ResourceLocation id) {
+        if (!net.minecraft.core.registries.BuiltInRegistries.BLOCK.containsKey(id)) {
+            return null;
+        }
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(id);
+    }
+
+    private static List<TagKey<Block>> getCandidateFlowerTags(ResourceLocation id) {
+        List<TagKey<Block>> tags = new ArrayList<>();
+        tags.add(TagKey.create(Registries.BLOCK, id));
+
+        if (!id.getPath().startsWith("flowers/")) {
+            tags.add(TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "flowers/" + id.getPath())));
+        }
+
+        return tags;
+    }
+
+    private boolean canRunVirtualHive(VirtualHiveConfig config) {
+        if (config == null || config.speciesId == null || config.instances <= 0 || config.biomeId == null || config.flowerItemId == null) {
+            return false;
+        }
+
+        if (SpeciesUtil.getBeeSpecies(config.speciesId) == null) {
+            return false;
+        }
+
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+        if (traits == null) {
+            return false;
+        }
+
+        if (traits.requiredBiomeId != null && !java.util.Objects.equals(config.biomeId, traits.requiredBiomeId)) {
+            return false;
+        }
+
+        if (traits.requiredFlowerId != null && !isCompatibleFlower(config.flowerItemId, traits.requiredFlowerId)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private int getRunningInstances() {
+        int total = 0;
+        for (VirtualHiveConfig config : this.virtualHives) {
+            if (canRunVirtualHive(config)) {
+                total += Math.max(0, config.instances);
+            }
+        }
+        return total;
+    }
+
+    private boolean hasOutputCapacityForSpecies(IBeeSpecies species) {
+        for (IProduct product : species.getProducts()) {
+            if (canAcceptProducedStack(product.createStack())) {
+                return true;
+            }
+        }
+        for (IProduct product : species.getSpecialties()) {
+            if (canAcceptProducedStack(product.createStack())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean canAcceptProducedStack(ItemStack stack) {
+        if (stack.isEmpty() || this.level == null) {
+            return false;
+        }
+
+        ItemStack single = stack.copyWithCount(1);
+        for (BlockPos exportBusPos : this.exportBusPositions) {
+            if (this.level.getBlockEntity(exportBusPos) instanceof BeeSXIExportBusBlockEntity exportBus
+                && exportBus.canAcceptIncomingStack(single)) {
+                return true;
+            }
+        }
+
+        for (BlockPos hddPos : this.hddPositions) {
+            if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd
+                && hdd.canAcceptStack(single)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private AnalyzedBeeTraits resolveSpeciesDefaults(ResourceLocation speciesId) {
         IBeeSpecies species = SpeciesUtil.getBeeSpecies(speciesId);
         if (species == null) {
-            return new AnalyzedBeeTraits(1.0F, null);
+            return new AnalyzedBeeTraits(1.0F, null, null, null, Map.of());
         }
 
         IGenome genome = species.createIndividual().getGenome();
         float speed = genome.getActiveValue(BeeChromosomes.SPEED);
         ResourceLocation activityId = genome.getActiveValue(BeeChromosomes.ACTIVITY);
-        return new AnalyzedBeeTraits(speed, activityId);
+        Map<String, String> alleles = extractAlleles(genome);
+        ResourceLocation flowerId = findFlowerFromAlleles(alleles);
+        return new AnalyzedBeeTraits(speed, activityId, null, flowerId, alleles);
     }
 
     public void serverTick(Level level, BlockPos pos, BlockState state) {
@@ -250,7 +490,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         chargeBatteriesFromSupplies();
 
-        boolean hasInstancePower = consumeInstanceEnergyPerTick();
+        boolean hasRunnableHives = getRunningInstances() > 0;
+        boolean hasInstancePower = !hasRunnableHives || consumeInstanceEnergyPerTick();
 
         if (this.analyzing) {
             tickAnalyzeProcess();
@@ -637,7 +878,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private void resizeVirtualHives() {
         while (this.virtualHives.size() < this.cpuCount) {
             int newIndex = this.virtualHives.size();
-            this.virtualHives.add(new VirtualHiveConfig(null, newIndex == 0 ? 1 : 0));
+            this.virtualHives.add(new VirtualHiveConfig(null, null, null, newIndex == 0 ? 1 : 0));
         }
         while (this.virtualHives.size() > this.cpuCount) {
             this.virtualHives.remove(this.virtualHives.size() - 1);
@@ -647,6 +888,12 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             config.instances = Math.max(0, config.instances);
             if (config.speciesId != null && !this.analyzedSpecies.containsKey(config.speciesId)) {
                 config.speciesId = null;
+            }
+            if (config.biomeId != null && !this.unlockedBiomes.contains(config.biomeId)) {
+                config.biomeId = null;
+            }
+            if (config.flowerItemId != null && !this.unlockedFlowers.contains(config.flowerItemId)) {
+                config.flowerItemId = null;
             }
         }
 
@@ -720,17 +967,11 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     public boolean clickMenuButton(Player player, int id) {
         LOGGER.info("BeeSXI button press: player={}, controller={}, buttonId={}", player.getGameProfile().getName(), this.worldPosition, id);
 
-        if (id >= 0 && id <= 2) {
+        if (id >= 0 && id <= TAB_BIOMES) {
             this.activeTab = id;
             if (id == TAB_INVENTORY) {
                 this.inventoryPage = 0;
             }
-            sync();
-            return true;
-        }
-
-        if (id == TAB_INFO) {
-            this.activeTab = TAB_INFO;
             sync();
             return true;
         }
@@ -765,6 +1006,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 1 -> cycleSpecies(line, 1);
                 case 2 -> changeInstances(line, -1);
                 case 3 -> changeInstances(line, 1);
+                case 4 -> cycleBiome(line, -1);
+                case 5 -> cycleBiome(line, 1);
+                case 6 -> cycleFlower(line, -1);
+                case 7 -> cycleFlower(line, 1);
                 default -> {
                     return false;
                 }
@@ -815,6 +1060,50 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
     }
 
+    private void cycleBiome(int line, int direction) {
+        VirtualHiveConfig config = this.virtualHives.get(line);
+        List<ResourceLocation> biomes = getUnlockedBiomeIds();
+        if (biomes.isEmpty()) {
+            config.biomeId = null;
+            return;
+        }
+
+        int index;
+        if (config.biomeId == null) {
+            index = direction < 0 ? biomes.size() - 1 : 0;
+        } else {
+            index = biomes.indexOf(config.biomeId);
+            if (index < 0) {
+                index = 0;
+            } else {
+                index = (index + direction + biomes.size()) % biomes.size();
+            }
+        }
+        config.biomeId = biomes.get(index);
+    }
+
+    private void cycleFlower(int line, int direction) {
+        VirtualHiveConfig config = this.virtualHives.get(line);
+        List<ResourceLocation> flowers = getUnlockedFlowerIds();
+        if (flowers.isEmpty()) {
+            config.flowerItemId = null;
+            return;
+        }
+
+        int index;
+        if (config.flowerItemId == null) {
+            index = direction < 0 ? flowers.size() - 1 : 0;
+        } else {
+            index = flowers.indexOf(config.flowerItemId);
+            if (index < 0) {
+                index = 0;
+            } else {
+                index = (index + direction + flowers.size()) % flowers.size();
+            }
+        }
+        config.flowerItemId = flowers.get(index);
+    }
+
     private void startAnalyzeOne() {
         if (!this.hasAnalyzer || this.analyzing || !this.formed) {
             return;
@@ -832,6 +1121,24 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             return;
         }
 
+        if (isFlowerItem(stack)) {
+            ResourceLocation flowerId = getForestryFlowerIdFromStack(stack);
+            if (flowerId == null) {
+                return;
+            }
+            this.pendingAnalyzeSpeciesId = null;
+            this.pendingAnalyzeSpeed = 0.0F;
+            this.pendingAnalyzeActivityId = null;
+            this.pendingAnalyzeBiomeId = null;
+            this.pendingAnalyzeFlowerId = flowerId;
+            this.pendingAnalyzeAlleles = Map.of();
+            this.analyzing = true;
+            this.analyzeTicksRemaining = ANALYZE_DURATION_TICKS;
+            this.analyzeEnergyRemaining = ANALYZE_RF_COST;
+            sync();
+            return;
+        }
+
         if (!ItemGE.isIndividual(stack)) {
             return;
         }
@@ -845,10 +1152,15 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         IGenome genome = individual.getGenome();
         float speed = genome == null ? 1.0F : genome.getActiveValue(BeeChromosomes.SPEED);
         ResourceLocation activityId = genome == null ? null : genome.getActiveValue(BeeChromosomes.ACTIVITY);
+        ResourceLocation biomeId = getCurrentBiomeId();
+        ResourceLocation flowerId = findFlowerFromAlleles(extractAlleles(genome));
 
         this.pendingAnalyzeSpeciesId = id;
         this.pendingAnalyzeSpeed = speed;
         this.pendingAnalyzeActivityId = activityId;
+        this.pendingAnalyzeBiomeId = biomeId;
+        this.pendingAnalyzeFlowerId = flowerId;
+        this.pendingAnalyzeAlleles = extractAlleles(genome);
         this.analyzing = true;
         this.analyzeTicksRemaining = ANALYZE_DURATION_TICKS;
         this.analyzeEnergyRemaining = ANALYZE_RF_COST;
@@ -859,9 +1171,21 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         CompoundTag customTag = data == null ? new CompoundTag() : data.copyTag();
 
+        if (customTag.contains(WEATHER_BIOME_KEY, Tag.TAG_STRING)) {
+            ResourceLocation weatherBiome = ResourceLocation.tryParse(customTag.getString(WEATHER_BIOME_KEY));
+            if (weatherBiome != null && this.unlockedBiomes.add(weatherBiome)) {
+                LOGGER.info("Analyzer imported weather report: controller={}, biome={}", this.worldPosition, weatherBiome);
+                return true;
+            }
+            return false;
+        }
+
         if (customTag.contains(PAPER_SPECIES_KEY, Tag.TAG_LIST)) {
             ListTag speciesList = customTag.getList(PAPER_SPECIES_KEY, Tag.TAG_STRING);
+            ListTag biomeList = customTag.getList(PAPER_BIOMES_KEY, Tag.TAG_STRING);
+            ListTag flowerList = customTag.getList(PAPER_FLOWERS_KEY, Tag.TAG_STRING);
             int unlocked = 0;
+            boolean changed = false;
             for (int i = 0; i < speciesList.size(); i++) {
                 ResourceLocation id = ResourceLocation.tryParse(speciesList.getString(i));
                 if (id == null) {
@@ -871,10 +1195,24 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 if (!this.analyzedSpecies.containsKey(id)) {
                     this.analyzedSpecies.put(id, resolveSpeciesDefaults(id));
                     unlocked++;
+                    changed = true;
                 }
             }
 
-            if (unlocked > 0) {
+            for (int i = 0; i < biomeList.size(); i++) {
+                ResourceLocation id = ResourceLocation.tryParse(biomeList.getString(i));
+                if (id != null && this.unlockedBiomes.add(id)) {
+                    changed = true;
+                }
+            }
+            for (int i = 0; i < flowerList.size(); i++) {
+                ResourceLocation id = ResourceLocation.tryParse(flowerList.getString(i));
+                if (id != null && this.unlockedFlowers.add(id)) {
+                    changed = true;
+                }
+            }
+
+            if (changed) {
                 LOGGER.info("Analyzer imported species card: controller={}, unlocked={}", this.worldPosition, unlocked);
                 return true;
             }
@@ -886,6 +1224,18 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             speciesList.add(StringTag.valueOf(speciesId.toString()));
         }
         customTag.put(PAPER_SPECIES_KEY, speciesList);
+
+        ListTag biomeList = new ListTag();
+        for (ResourceLocation biomeId : getUnlockedBiomeIds()) {
+            biomeList.add(StringTag.valueOf(biomeId.toString()));
+        }
+        customTag.put(PAPER_BIOMES_KEY, biomeList);
+
+        ListTag flowerList = new ListTag();
+        for (ResourceLocation flowerId : getUnlockedFlowerIds()) {
+            flowerList.add(StringTag.valueOf(flowerId.toString()));
+        }
+        customTag.put(PAPER_FLOWERS_KEY, flowerList);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(customTag));
         LOGGER.info("Analyzer exported species card: controller={}, speciesCount={}", this.worldPosition, this.analyzedSpecies.size());
         return true;
@@ -932,14 +1282,25 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         if (this.pendingAnalyzeSpeciesId != null) {
-            AnalyzedBeeTraits previous = this.analyzedSpecies.put(this.pendingAnalyzeSpeciesId, new AnalyzedBeeTraits(this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId));
-            if (previous == null || previous.speed != this.pendingAnalyzeSpeed || !java.util.Objects.equals(previous.activityTypeId, this.pendingAnalyzeActivityId)) {
+            AnalyzedBeeTraits previous = this.analyzedSpecies.put(this.pendingAnalyzeSpeciesId, new AnalyzedBeeTraits(this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId, this.pendingAnalyzeBiomeId, this.pendingAnalyzeFlowerId, this.pendingAnalyzeAlleles));
+            if (previous == null || previous.speed != this.pendingAnalyzeSpeed || !java.util.Objects.equals(previous.activityTypeId, this.pendingAnalyzeActivityId) || !java.util.Objects.equals(previous.requiredBiomeId, this.pendingAnalyzeBiomeId) || !java.util.Objects.equals(previous.requiredFlowerId, this.pendingAnalyzeFlowerId)) {
                 LOGGER.info("Bee analyzed: controller={}, species={}, speed={}, activity={}", this.worldPosition, this.pendingAnalyzeSpeciesId, this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId);
             }
+            if (this.pendingAnalyzeBiomeId != null) {
+                this.unlockedBiomes.add(this.pendingAnalyzeBiomeId);
+            }
+            if (this.pendingAnalyzeFlowerId != null) {
+                this.unlockedFlowers.add(this.pendingAnalyzeFlowerId);
+            }
+        } else if (this.pendingAnalyzeFlowerId != null) {
+            this.unlockedFlowers.add(this.pendingAnalyzeFlowerId);
         }
 
         this.pendingAnalyzeSpeciesId = null;
         this.pendingAnalyzeActivityId = null;
+        this.pendingAnalyzeBiomeId = null;
+        this.pendingAnalyzeFlowerId = null;
+        this.pendingAnalyzeAlleles = Map.of();
         this.pendingAnalyzeSpeed = 0.0F;
         this.analyzing = false;
         this.analyzeTicksRemaining = 0;
@@ -954,7 +1315,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         for (VirtualHiveConfig config : this.virtualHives) {
-            if (config.speciesId == null || config.instances <= 0) {
+            if (!canRunVirtualHive(config)) {
                 continue;
             }
 
@@ -963,7 +1324,12 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 continue;
             }
 
+            if (!hasOutputCapacityForSpecies(species)) {
+                continue;
+            }
+
             AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+
             double activityMultiplier = 1.0D;
             if (traits != null && traits.activityTypeId != null && HALF_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
                 activityMultiplier = 0.5D;
@@ -998,7 +1364,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     private long getInstancesPerTickCost() {
-        return (long) getTotalInstances() * RF_PER_TICK_INSTANCE;
+        return (long) getRunningInstances() * RF_PER_TICK_INSTANCE;
     }
 
     private void produceForSpecies(IBeeSpecies species, Level level, double activityMultiplier) {
@@ -1276,6 +1642,18 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         return List.copyOf(this.analyzedSpecies.keySet());
     }
 
+    public List<ResourceLocation> getUnlockedBiomeIds() {
+        List<ResourceLocation> list = new ArrayList<>(this.unlockedBiomes);
+        list.sort(Comparator.comparing(ResourceLocation::toString));
+        return list;
+    }
+
+    public List<ResourceLocation> getUnlockedFlowerIds() {
+        List<ResourceLocation> list = new ArrayList<>(this.unlockedFlowers);
+        list.sort(Comparator.comparing(ResourceLocation::toString));
+        return list;
+    }
+
     public float getSpeedForSpecies(ResourceLocation speciesId) {
         if (speciesId == null) {
             return 1.0F;
@@ -1301,7 +1679,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     public List<VirtualHiveConfig> getVirtualHives() {
         List<VirtualHiveConfig> copy = new ArrayList<>(this.virtualHives.size());
         for (VirtualHiveConfig config : this.virtualHives) {
-            copy.add(new VirtualHiveConfig(config.speciesId, config.instances));
+            copy.add(new VirtualHiveConfig(config.speciesId, config.biomeId, config.flowerItemId, config.instances));
         }
         return copy;
     }
@@ -1311,17 +1689,18 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public int getHddNetworkSlotCount() {
-        if (this.level == null) {
-            return 0;
-        }
+        return getHddPageCount() * NETWORK_SLOT_PAGE_SIZE;
+    }
 
-        int total = 0;
-        for (BlockPos hddPos : this.hddPositions) {
-            if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
-                total += hdd.getContainerSize();
-            }
+    public int getHddPageCount() {
+        return this.hddPositions.size();
+    }
+
+    public BlockPos getHddPosForPage(int page) {
+        if (page < 0 || page >= this.hddPositions.size()) {
+            return null;
         }
-        return total;
+        return this.hddPositions.get(page);
     }
 
     public int getInventoryPage() {
@@ -1333,7 +1712,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public int getMaxInventoryPage() {
-        return Math.max(0, (getHddNetworkSlotCount() - 1) / NETWORK_SLOT_PAGE_SIZE);
+        return Math.max(0, getHddPageCount() - 1);
     }
 
     public int getStructureDimX() {
@@ -1432,19 +1811,19 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public ItemStack getHddNetworkItem(int slot) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
             return ItemStack.EMPTY;
         }
-        return ref.hdd.getItem(ref.slot);
+        return hdd.getItem(slot);
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
             return ItemStack.EMPTY;
         }
-        ItemStack removed = ref.hdd.extractStack(ref.slot, amount);
+        ItemStack removed = hdd.extractStack(slot, amount);
         if (!removed.isEmpty()) {
             sync();
         }
@@ -1486,35 +1865,35 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public int getHddBytesUsed(int slot) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null) {
             return 0;
         }
-        return ref.hdd.getUsedBytes();
+        return hdd.getUsedBytes();
     }
 
     public int getHddBytesTotal(int slot) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null) {
             return 0;
         }
-        return ref.hdd.getTotalCapacityBytes();
+        return hdd.getTotalCapacityBytes();
     }
 
     public int getHddTypesUsed(int slot) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null) {
             return 0;
         }
-        return ref.hdd.getUsedTypes();
+        return hdd.getUsedTypes();
     }
 
     public int getHddTypesMax(int slot) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null) {
             return 0;
         }
-        return ref.hdd.getMaxTypes();
+        return hdd.getMaxTypes();
     }
 
     public ItemStack removeHddNetworkItem(int slot, int amount) {
@@ -1522,36 +1901,32 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public void setHddNetworkItem(int slot, ItemStack stack) {
-        HddSlotRef ref = resolveHddSlot(slot);
-        if (ref == null) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
             return;
         }
-        ref.hdd.setItem(ref.slot, stack);
+        hdd.setItem(slot, stack);
         sync();
     }
 
     public boolean hasHddNetworkSlot(int slot) {
-        return resolveHddSlot(slot) != null;
+        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return hdd != null && slot >= 0 && slot < NETWORK_SLOT_PAGE_SIZE && slot < hdd.getContainerSize();
     }
 
-    private HddSlotRef resolveHddSlot(int slot) {
-        if (slot < 0 || this.level == null) {
+    private BeeSXIHddBlockEntity getHddForPage(int page) {
+        if (page < 0 || this.level == null) {
             return null;
         }
 
-        int remaining = slot;
-        for (BlockPos hddPos : this.hddPositions) {
-            if (!(this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd)) {
-                continue;
-            }
-
-            int size = hdd.getContainerSize();
-            if (remaining < size) {
-                return new HddSlotRef(hdd, remaining);
-            }
-            remaining -= size;
+        if (page >= this.hddPositions.size()) {
+            return null;
         }
 
+        BlockPos hddPos = this.hddPositions.get(page);
+        if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
+            return hdd;
+        }
         return null;
     }
 
@@ -1582,6 +1957,13 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         tag.putString("PendingAnalyzeSpecies", this.pendingAnalyzeSpeciesId == null ? "" : this.pendingAnalyzeSpeciesId.toString());
         tag.putFloat("PendingAnalyzeSpeed", this.pendingAnalyzeSpeed);
         tag.putString("PendingAnalyzeActivity", this.pendingAnalyzeActivityId == null ? "" : this.pendingAnalyzeActivityId.toString());
+        tag.putString("PendingAnalyzeBiome", this.pendingAnalyzeBiomeId == null ? "" : this.pendingAnalyzeBiomeId.toString());
+        tag.putString("PendingAnalyzeFlower", this.pendingAnalyzeFlowerId == null ? "" : this.pendingAnalyzeFlowerId.toString());
+        CompoundTag pendingAlleles = new CompoundTag();
+        for (Map.Entry<String, String> entry : this.pendingAnalyzeAlleles.entrySet()) {
+            pendingAlleles.putString(entry.getKey(), entry.getValue());
+        }
+        tag.put("PendingAnalyzeAlleles", pendingAlleles);
         tag.putLong("UiPowerStored", this.uiPowerStored);
         tag.putLong("UiPowerCapacity", this.uiPowerCapacity);
         tag.putInt("UiAnalyzeProgress", this.uiAnalyzeProgress);
@@ -1608,14 +1990,36 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             speciesTag.putString("Species", entry.getKey().toString());
             speciesTag.putFloat("Speed", entry.getValue().speed);
             speciesTag.putString("Activity", entry.getValue().activityTypeId == null ? "" : entry.getValue().activityTypeId.toString());
+            speciesTag.putString("Biome", entry.getValue().requiredBiomeId == null ? "" : entry.getValue().requiredBiomeId.toString());
+            speciesTag.putString("Flower", entry.getValue().requiredFlowerId == null ? "" : entry.getValue().requiredFlowerId.toString());
+
+            CompoundTag allelesTag = new CompoundTag();
+            for (Map.Entry<String, String> allele : entry.getValue().alleles.entrySet()) {
+                allelesTag.putString(allele.getKey(), allele.getValue());
+            }
+            speciesTag.put(PAPER_ALLELES_KEY, allelesTag);
             analyzed.add(speciesTag);
         }
         tag.put("AnalyzedSpecies", analyzed);
+
+        ListTag unlockedBiomesTag = new ListTag();
+        for (ResourceLocation biomeId : getUnlockedBiomeIds()) {
+            unlockedBiomesTag.add(StringTag.valueOf(biomeId.toString()));
+        }
+        tag.put("UnlockedBiomes", unlockedBiomesTag);
+
+        ListTag unlockedFlowersTag = new ListTag();
+        for (ResourceLocation flowerId : getUnlockedFlowerIds()) {
+            unlockedFlowersTag.add(StringTag.valueOf(flowerId.toString()));
+        }
+        tag.put("UnlockedFlowers", unlockedFlowersTag);
 
         ListTag hives = new ListTag();
         for (VirtualHiveConfig config : this.virtualHives) {
             CompoundTag hiveTag = new CompoundTag();
             hiveTag.putString("Species", config.speciesId == null ? "" : config.speciesId.toString());
+            hiveTag.putString("Biome", config.biomeId == null ? "" : config.biomeId.toString());
+            hiveTag.putString("Flower", config.flowerItemId == null ? "" : config.flowerItemId.toString());
             hiveTag.putInt("Instances", config.instances);
             hives.add(hiveTag);
         }
@@ -1681,6 +2085,15 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.pendingAnalyzeSpeciesId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeSpecies"));
         this.pendingAnalyzeSpeed = tag.contains("PendingAnalyzeSpeed", Tag.TAG_FLOAT) ? tag.getFloat("PendingAnalyzeSpeed") : 0.0F;
         this.pendingAnalyzeActivityId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeActivity"));
+        this.pendingAnalyzeBiomeId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeBiome"));
+        this.pendingAnalyzeFlowerId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeFlower"));
+        this.pendingAnalyzeAlleles = new HashMap<>();
+        if (tag.contains("PendingAnalyzeAlleles", Tag.TAG_COMPOUND)) {
+            CompoundTag pendingAlleles = tag.getCompound("PendingAnalyzeAlleles");
+            for (String key : pendingAlleles.getAllKeys()) {
+                this.pendingAnalyzeAlleles.put(key, pendingAlleles.getString(key));
+            }
+        }
         this.uiPowerStored = tag.contains("UiPowerStored", Tag.TAG_LONG) ? tag.getLong("UiPowerStored") : 0L;
         this.uiPowerCapacity = tag.contains("UiPowerCapacity", Tag.TAG_LONG) ? tag.getLong("UiPowerCapacity") : 0L;
         this.uiAnalyzeProgress = tag.contains("UiAnalyzeProgress", Tag.TAG_INT) ? tag.getInt("UiAnalyzeProgress") : (this.analyzing ? 0 : 100);
@@ -1712,7 +2125,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
             float speed = speciesTag.contains("Speed", Tag.TAG_FLOAT) ? speciesTag.getFloat("Speed") : 1.0F;
             ResourceLocation activityId = ResourceLocation.tryParse(speciesTag.getString("Activity"));
-            this.analyzedSpecies.put(id, new AnalyzedBeeTraits(speed, activityId));
+            ResourceLocation biomeId = ResourceLocation.tryParse(speciesTag.getString("Biome"));
+            ResourceLocation flowerId = ResourceLocation.tryParse(speciesTag.getString("Flower"));
+            Map<String, String> alleles = new HashMap<>();
+            if (speciesTag.contains(PAPER_ALLELES_KEY, Tag.TAG_COMPOUND)) {
+                CompoundTag allelesTag = speciesTag.getCompound(PAPER_ALLELES_KEY);
+                for (String key : allelesTag.getAllKeys()) {
+                    alleles.put(key, allelesTag.getString(key));
+                }
+            }
+            this.analyzedSpecies.put(id, new AnalyzedBeeTraits(speed, activityId, biomeId, flowerId, alleles));
         }
 
         if (this.analyzedSpecies.isEmpty()) {
@@ -1724,6 +2146,24 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 }
             }
         }
+
+        this.unlockedBiomes.clear();
+        ListTag unlockedBiomesTag = tag.getList("UnlockedBiomes", Tag.TAG_STRING);
+        for (int i = 0; i < unlockedBiomesTag.size(); i++) {
+            ResourceLocation id = ResourceLocation.tryParse(unlockedBiomesTag.getString(i));
+            if (id != null) {
+                this.unlockedBiomes.add(id);
+            }
+        }
+
+        this.unlockedFlowers.clear();
+        ListTag unlockedFlowersTag = tag.getList("UnlockedFlowers", Tag.TAG_STRING);
+        for (int i = 0; i < unlockedFlowersTag.size(); i++) {
+            ResourceLocation id = ResourceLocation.tryParse(unlockedFlowersTag.getString(i));
+            if (id != null) {
+                this.unlockedFlowers.add(id);
+            }
+        }
         ensureDefaultUnlocks();
 
         this.virtualHives.clear();
@@ -1731,8 +2171,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         for (int i = 0; i < hives.size(); i++) {
             CompoundTag hiveTag = hives.getCompound(i);
             ResourceLocation speciesId = ResourceLocation.tryParse(hiveTag.getString("Species"));
+            ResourceLocation biomeId = ResourceLocation.tryParse(hiveTag.getString("Biome"));
+            ResourceLocation flowerId = ResourceLocation.tryParse(hiveTag.getString("Flower"));
             int instances = Math.max(0, hiveTag.getInt("Instances"));
-            this.virtualHives.add(new VirtualHiveConfig(speciesId, instances));
+            this.virtualHives.add(new VirtualHiveConfig(speciesId, biomeId, flowerId, instances));
         }
 
         this.hddPositions.clear();
@@ -1841,21 +2283,15 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
     public static final class VirtualHiveConfig {
         public ResourceLocation speciesId;
+        public ResourceLocation biomeId;
+        public ResourceLocation flowerItemId;
         public int instances;
 
-        public VirtualHiveConfig(ResourceLocation speciesId, int instances) {
+        public VirtualHiveConfig(ResourceLocation speciesId, ResourceLocation biomeId, ResourceLocation flowerItemId, int instances) {
             this.speciesId = speciesId;
+            this.biomeId = biomeId;
+            this.flowerItemId = flowerItemId;
             this.instances = instances;
-        }
-    }
-
-    private static final class HddSlotRef {
-        final BeeSXIHddBlockEntity hdd;
-        final int slot;
-
-        private HddSlotRef(BeeSXIHddBlockEntity hdd, int slot) {
-            this.hdd = hdd;
-            this.slot = slot;
         }
     }
 
@@ -1926,10 +2362,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private static final class AnalyzedBeeTraits {
         final float speed;
         final ResourceLocation activityTypeId;
+        final ResourceLocation requiredBiomeId;
+        final ResourceLocation requiredFlowerId;
+        final Map<String, String> alleles;
 
-        private AnalyzedBeeTraits(float speed, ResourceLocation activityTypeId) {
+        private AnalyzedBeeTraits(float speed, ResourceLocation activityTypeId, ResourceLocation requiredBiomeId, ResourceLocation requiredFlowerId, Map<String, String> alleles) {
             this.speed = speed;
             this.activityTypeId = activityTypeId;
+            this.requiredBiomeId = requiredBiomeId;
+            this.requiredFlowerId = requiredFlowerId;
+            this.alleles = alleles == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(alleles));
         }
     }
 }
