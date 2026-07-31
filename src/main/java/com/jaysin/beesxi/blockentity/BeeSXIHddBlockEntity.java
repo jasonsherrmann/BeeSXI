@@ -43,10 +43,6 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
         return DEFAULT_TOTAL_BYTES;
     }
 
-    private int getTypeOverheadBytes() {
-        return Math.max(1, getTotalBytes() / 128);
-    }
-
     private int getStoredItems() {
         int total = 0;
         for (int count : this.itemCounts.values()) {
@@ -65,7 +61,7 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
 
     public int getUsedBytes() {
         int itemBytes = (getStoredItems() + ITEMS_PER_BYTE - 1) / ITEMS_PER_BYTE;
-        return Math.min(getTotalBytes(), getUsedTypesInternal() * getTypeOverheadBytes() + itemBytes);
+        return Math.min(getTotalBytes(), itemBytes);
     }
 
     public int getTotalCapacityBytes() {
@@ -93,9 +89,8 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
         return StorageState.HAS_ITEMS;
     }
 
-    private int getMaxItemsForTypes(int typesUsed) {
-        int availableBytes = Math.max(0, getTotalBytes() - typesUsed * getTypeOverheadBytes());
-        return availableBytes * ITEMS_PER_BYTE;
+    private int getMaxItemsForTypes(int ignoredTypesUsed) {
+        return Math.max(0, getTotalBytes() * ITEMS_PER_BYTE);
     }
 
     private int getRemainingCapacityFor(ResourceLocation id) {

@@ -249,13 +249,16 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         BlockState state = blockItem.getBlock().defaultBlockState();
-        boolean isForestryFlower = state.is(FORESTRY_FLOWERS_ROOT_TAG)
-            || state.getTags().anyMatch(tag -> tag.location().getNamespace().equals("forestry") && tag.location().getPath().startsWith("flowers/"));
-        if (!isForestryFlower) {
-            return null;
+        ResourceLocation matchedTag = state.getTags()
+            .map(TagKey::location)
+            .filter(location -> location.getNamespace().equals("forestry") && location.getPath().startsWith("flowers/"))
+            .findFirst()
+            .orElse(null);
+        if (matchedTag != null) {
+            return matchedTag;
         }
 
-        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(blockItem.getBlock());
+        return state.is(FORESTRY_FLOWERS_ROOT_TAG) ? FORESTRY_FLOWERS_ROOT_TAG.location() : null;
     }
 
     private ResourceLocation getCurrentBiomeId() {
@@ -565,10 +568,6 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
     }
 
-    private StructureValidationResult findValidStructure(Level level) {
-        return collectStructureDiagnostics(level).result;
-    }
-
     private StructureDiagnostics collectStructureDiagnostics(Level level) {
         Set<BlockPos> component = collectConnectedStructureComponent(level);
         if (component.isEmpty()) {
@@ -799,80 +798,6 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         return visited;
-    }
-
-    private StructureValidationResult validateAt(Level level, BlockPos minPos, int sizeX, int sizeY, int sizeZ) {
-        int cpus = 0;
-        int rams = 0;
-        int analyzers = 0;
-        int controllerCount = 0;
-
-        List<BlockPos> foundHdds = new ArrayList<>();
-        List<BlockPos> foundPowerSupplies = new ArrayList<>();
-        List<BlockPos> foundBatteries = new ArrayList<>();
-        List<BlockPos> foundExportBuses = new ArrayList<>();
-        List<BlockPos> structurePositions = new ArrayList<>(sizeX * sizeY * sizeZ);
-
-        for (int x = 0; x < sizeX; x++) {
-            for (int y = 0; y < sizeY; y++) {
-                for (int z = 0; z < sizeZ; z++) {
-                    BlockPos scanPos = minPos.offset(x, y, z);
-                    BlockState scanState = level.getBlockState(scanPos);
-                    structurePositions.add(scanPos.immutable());
-
-                    if (scanPos.equals(this.worldPosition)) {
-                        if (!(scanState.getBlock() instanceof BeeSXIControllerBlock)) {
-                            return StructureValidationResult.invalid();
-                        }
-                        controllerCount++;
-                        continue;
-                    }
-
-                    if (!(scanState.getBlock() instanceof BeeSXIPartBlock partBlock)) {
-                        return StructureValidationResult.invalid();
-                    }
-
-                    BeeSXIPartType partType = partBlock.getPartType();
-                    int boundaryAxes = (x == 0 || x == sizeX - 1 ? 1 : 0)
-                        + (y == 0 || y == sizeY - 1 ? 1 : 0)
-                        + (z == 0 || z == sizeZ - 1 ? 1 : 0);
-                    boolean isEdgeOrCorner = boundaryAxes >= 2;
-                    if (isEdgeOrCorner && partType != BeeSXIPartType.CASING) {
-                        return StructureValidationResult.invalid();
-                    }
-
-                    switch (partType) {
-                        case CPU -> cpus++;
-                        case RAM -> rams++;
-                        case HDD -> foundHdds.add(scanPos.immutable());
-                        case POWER_SUPPLY -> foundPowerSupplies.add(scanPos.immutable());
-                        case BATTERY -> foundBatteries.add(scanPos.immutable());
-                        case EXPORT_BUS -> foundExportBuses.add(scanPos.immutable());
-                        case MOLECULAR_ANALYZER -> analyzers++;
-                        case CASING -> {
-                        }
-                    }
-                }
-            }
-        }
-
-        int controllerBoundaryAxes = (this.worldPosition.getX() == minPos.getX() || this.worldPosition.getX() == minPos.getX() + sizeX - 1 ? 1 : 0)
-            + (this.worldPosition.getY() == minPos.getY() || this.worldPosition.getY() == minPos.getY() + sizeY - 1 ? 1 : 0)
-            + (this.worldPosition.getZ() == minPos.getZ() || this.worldPosition.getZ() == minPos.getZ() + sizeZ - 1 ? 1 : 0);
-        if (controllerBoundaryAxes != 1) {
-            return StructureValidationResult.invalid();
-        }
-
-        boolean valid = controllerCount == 1 && cpus >= 1 && rams >= 1 && !foundHdds.isEmpty();
-        if (!valid) {
-            return StructureValidationResult.invalid();
-        }
-
-        if (foundPowerSupplies.isEmpty()) {
-            return StructureValidationResult.invalid();
-        }
-
-        return new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, foundExportBuses, structurePositions);
     }
 
     private void resizeVirtualHives() {
@@ -1289,9 +1214,6 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             if (this.pendingAnalyzeBiomeId != null) {
                 this.unlockedBiomes.add(this.pendingAnalyzeBiomeId);
             }
-            if (this.pendingAnalyzeFlowerId != null) {
-                this.unlockedFlowers.add(this.pendingAnalyzeFlowerId);
-            }
         } else if (this.pendingAnalyzeFlowerId != null) {
             this.unlockedFlowers.add(this.pendingAnalyzeFlowerId);
         }
@@ -1306,6 +1228,22 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         this.analyzeTicksRemaining = 0;
         this.analyzeEnergyRemaining = 0L;
         sync();
+    }
+
+    private double getActivityMultiplier(AnalyzedBeeTraits traits) {
+        if (traits == null || traits.activityTypeId == null) {
+            return 1.0D;
+        }
+        if (HALF_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
+            return 0.5D;
+        }
+        if (FULL_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
+            return 1.0D;
+        }
+        if (ONE_TWELFTH_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
+            return 1.0D / 12.0D;
+        }
+        return 1.0D;
     }
 
     private void produceVirtualHiveDrops() {
@@ -1329,17 +1267,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             }
 
             AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
-
-            double activityMultiplier = 1.0D;
-            if (traits != null && traits.activityTypeId != null && HALF_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
-                activityMultiplier = 0.5D;
-            } 
-            if (traits != null && traits.activityTypeId != null && FULL_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
-                activityMultiplier = 1.0D;
-            }
-            if (traits != null && traits.activityTypeId != null && ONE_TWELFTH_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
-                activityMultiplier = 1.0D / 12.0D;
-            } 
+            double activityMultiplier = getActivityMultiplier(traits);
 
             for (int i = 0; i < config.instances; i++) {
                 produceForSpecies(species, level, activityMultiplier);
@@ -1410,53 +1338,6 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         if (!remaining.isEmpty() && this.level instanceof ServerLevel serverLevel) {
             net.minecraft.world.Containers.dropItemStack(serverLevel, this.worldPosition.getX(), this.worldPosition.getY() + 1, this.worldPosition.getZ(), remaining);
         }
-    }
-
-    private static ItemStack addToContainer(Container container, ItemStack stack, int startSlot) {
-        ItemStack remaining = stack.copy();
-
-        for (int slot = startSlot; slot < container.getContainerSize(); slot++) {
-            if (remaining.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-
-            ItemStack inSlot = container.getItem(slot);
-            if (inSlot.isEmpty()) {
-                continue;
-            }
-
-            if (!ItemStack.isSameItemSameComponents(inSlot, remaining)) {
-                continue;
-            }
-
-            int max = Math.min(container.getMaxStackSize(), inSlot.getMaxStackSize());
-            int room = max - inSlot.getCount();
-            if (room <= 0) {
-                continue;
-            }
-
-            int move = Math.min(room, remaining.getCount());
-            inSlot.grow(move);
-            remaining.shrink(move);
-            container.setChanged();
-        }
-
-        for (int slot = startSlot; slot < container.getContainerSize(); slot++) {
-            if (remaining.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-
-            if (!container.getItem(slot).isEmpty()) {
-                continue;
-            }
-
-            int move = Math.min(container.getMaxStackSize(), remaining.getCount());
-            ItemStack moved = remaining.copyWithCount(move);
-            container.setItem(slot, moved);
-            remaining.shrink(move);
-        }
-
-        return remaining;
     }
 
     private boolean consumeEnergy(long rf, boolean simulate) {
