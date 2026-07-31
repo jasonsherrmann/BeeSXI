@@ -5,12 +5,16 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 import com.jaysin.beesxi.blockentity.BeeSXIWeatherReporterBlockEntity;
 
@@ -41,5 +45,20 @@ public class BeeSXIWeatherReporterBlock extends Block implements EntityBlock {
             reporter.processScheduledTick(level, pos, state, TICK_INTERVAL);
         }
         level.scheduleTick(pos, this, TICK_INTERVAL);
+    }
+
+    @Nonnull
+    @Override
+    protected InteractionResult useWithoutItem(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull Player player, @Nonnull BlockHitResult hitResult) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
+
+        if (player instanceof ServerPlayer serverPlayer && level.getBlockEntity(pos) instanceof BeeSXIWeatherReporterBlockEntity reporter) {
+            serverPlayer.openMenu(reporter, reporter::writeMenuData);
+            return InteractionResult.CONSUME;
+        }
+
+        return InteractionResult.PASS;
     }
 }

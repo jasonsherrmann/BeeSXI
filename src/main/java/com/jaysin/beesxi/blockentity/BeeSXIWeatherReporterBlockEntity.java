@@ -2,6 +2,7 @@ package com.jaysin.beesxi.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -11,7 +12,10 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -20,8 +24,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
 
-public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Container {
+public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Container, MenuProvider {
     private static final int SIZE = 1;
     private static final int REPORT_DURATION_TICKS = 20 * 60 * 10;
     private static final String WEATHER_BIOME_KEY = "BeeSXIWeatherReportBiome";
@@ -108,6 +113,20 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
         ContainerHelper.loadAllItems(tag, this.items, provider);
         this.progressTicks = Math.max(0, tag.getInt("ProgressTicks"));
         this.pendingBiome = ResourceLocation.tryParse(tag.getString("PendingBiome"));
+    }
+
+    public void writeMenuData(FriendlyByteBuf buffer) {
+        buffer.writeBlockPos(this.worldPosition);
+    }
+
+    @Override
+    public Component getDisplayName() {
+        return Component.translatable("block.beesxi.beesxi_weather_reporter");
+    }
+
+    @Override
+    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+        return new BeeSXIWeatherReporterMenu(containerId, playerInventory, this);
     }
 
     @Override

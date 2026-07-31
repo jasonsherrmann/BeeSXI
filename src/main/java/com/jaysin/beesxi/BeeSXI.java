@@ -20,6 +20,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -37,9 +38,11 @@ import com.jaysin.beesxi.blocks.BeeSXIHddBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPowerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIWeatherReporterBlock;
+import com.jaysin.beesxi.command.BeeSXICommands;
 import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
 import com.jaysin.beesxi.server.BeeSXIPartType;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
+import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
 
 @Mod(BeeSXI.MODID)
 public class BeeSXI {
@@ -104,6 +107,8 @@ public class BeeSXI {
         MENUS.register("beesxi_server", () -> IMenuTypeExtension.create(BeeSXIServerMenu::fromNetwork));
     public static final DeferredHolder<MenuType<?>, MenuType<BeeSXIExportBusMenu>> BEESXI_EXPORT_BUS_MENU =
         MENUS.register("beesxi_export_bus", () -> IMenuTypeExtension.create(BeeSXIExportBusMenu::fromNetwork));
+    public static final DeferredHolder<MenuType<?>, MenuType<BeeSXIWeatherReporterMenu>> BEESXI_WEATHER_REPORTER_MENU =
+        MENUS.register("beesxi_weather_reporter", () -> IMenuTypeExtension.create(BeeSXIWeatherReporterMenu::fromNetwork));
 
     public static final DeferredHolder<Item, Item> BEESXI_CONTROLLER_ITEM = ITEMS.register("beesxi_controller", () -> new BlockItem(BEESXI_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_CPU_ITEM = ITEMS.register("beesxi_cpu", () -> new BlockItem(BEESXI_CPU.get(), new Item.Properties()));
@@ -153,6 +158,8 @@ public class BeeSXI {
         CREATIVE_MODE_TABS.register(modEventBus);
         BLOCK_ENTITIES.register(modEventBus);
         MENUS.register(modEventBus);
+
+        NeoForge.EVENT_BUS.addListener(BeeSXICommands::register);
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerCapabilities);

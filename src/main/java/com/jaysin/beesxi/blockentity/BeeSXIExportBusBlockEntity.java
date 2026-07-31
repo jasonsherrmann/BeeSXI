@@ -31,7 +31,7 @@ import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
 
 public class BeeSXIExportBusBlockEntity extends BlockEntity implements Container, net.minecraft.world.MenuProvider {
     public static final int INVENTORY_SIZE = 27;
-    public static final int FILTER_SIZE = 9;
+    public static final int FILTER_SIZE = 27;
 
     private static final int TRANSFER_INTERVAL_TICKS = 20;
     private static final int MAX_TRANSFER_PER_INTERVAL = 64;

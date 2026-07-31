@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "beesxi:block/beesxi_casing"
+    "all": "beesxi:block/weather_reporter"
   }
 }

@@ -33,10 +33,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.tags.TagKey;
@@ -45,12 +47,18 @@ import net.minecraft.core.registries.Registries;
 import com.jaysin.beesxi.BeeSXI;
 import com.jaysin.beesxi.blocks.BeeSXIControllerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
+import com.jaysin.beesxi.command.BeeSXICommands;
 import com.jaysin.beesxi.server.BeeSXIPartType;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 
+import forestry.api.IForestryApi;
 import forestry.api.apiculture.genetics.IBeeSpecies;
 import forestry.api.apiculture.ForestryActivityTypes;
+import forestry.api.climate.IClimateManager;
+import forestry.api.core.HumidityType;
 import forestry.api.core.IProduct;
+import forestry.api.core.TemperatureType;
+import forestry.api.genetics.ClimateHelper;
 import forestry.api.genetics.IIndividual;
 import forestry.api.genetics.IGenome;
 import forestry.api.genetics.alleles.BeeChromosomes;
@@ -62,6 +70,12 @@ import com.mojang.logging.LogUtils;
 
 public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block.entity.BlockEntity implements Container, net.minecraft.world.MenuProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
+
+    private static void debugLog(String message, Object... args) {
+        if (BeeSXICommands.isDebugModeEnabled()) {
+            LOGGER.info(message, args);
+        }
+    }
 
     public static final int TAB_ANALYSIS = 0;
     public static final int TAB_VIRTUAL_HIVES = 1;
@@ -249,16 +263,13 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         BlockState state = blockItem.getBlock().defaultBlockState();
-        ResourceLocation matchedTag = state.getTags()
-            .map(TagKey::location)
-            .filter(location -> location.getNamespace().equals("forestry") && location.getPath().startsWith("flowers/"))
-            .findFirst()
-            .orElse(null);
-        if (matchedTag != null) {
-            return matchedTag;
+        boolean isForestryFlower = state.is(FORESTRY_FLOWERS_ROOT_TAG)
+            || state.getTags().anyMatch(tag -> tag.location().getNamespace().equals("forestry") && tag.location().getPath().startsWith("flowers/"));
+        if (!isForestryFlower) {
+            return null;
         }
 
-        return state.is(FORESTRY_FLOWERS_ROOT_TAG) ? FORESTRY_FLOWERS_ROOT_TAG.location() : null;
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(blockItem.getBlock());
     }
 
     private ResourceLocation getCurrentBiomeId() {
@@ -328,83 +339,220 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         return null;
     }
 
+    private ResourceLocation findFlowerFromGenome(IGenome genome) {
+        if (genome == null) {
+            return null;
+        }
+
+        Object flowerType = invokeGenomeActiveValue(genome, BeeChromosomes.FLOWER_TYPE);
+        if (flowerType instanceof ResourceLocation resourceLocation) {
+            return resourceLocation;
+        }
+        if (flowerType instanceof String string) {
+            return ResourceLocation.tryParse(string);
+        }
+
+        return null;
+    }
+
     private boolean isCompatibleFlower(@javax.annotation.Nullable ResourceLocation selectedFlowerId, @javax.annotation.Nullable ResourceLocation requiredFlowerId) {
         if (selectedFlowerId == null || requiredFlowerId == null) {
+            debugLog("Flower compatibility skipped because one of the IDs was null: selected={}, required={}", selectedFlowerId, requiredFlowerId);
             return false;
         }
-        if (requiredFlowerId.equals(selectedFlowerId)) {
+
+        ResourceLocation resolvedRequiredFlowerId = resolveFlowerTypeTag(requiredFlowerId);
+
+        if (selectedFlowerId.equals(resolvedRequiredFlowerId)) {
             return true;
         }
 
-        Block selectedBlock = resolveFlowerBlock(selectedFlowerId);
-        Block requiredBlock = resolveFlowerBlock(requiredFlowerId);
-
-        if (selectedBlock != null && requiredBlock != null) {
-            return selectedBlock == requiredBlock;
+        boolean matched = isFlowerInTag(selectedFlowerId, resolvedRequiredFlowerId);
+        if (!matched) {
+            Set<ResourceLocation> selectedTags = getFlowerTagLocations(selectedFlowerId);
+            Set<ResourceLocation> requiredTags = getFlowerTagLocations(resolvedRequiredFlowerId);
+            matched = !Collections.disjoint(selectedTags, requiredTags);
         }
 
-        List<TagKey<Block>> selectedTags = getCandidateFlowerTags(selectedFlowerId);
-        List<TagKey<Block>> requiredTags = getCandidateFlowerTags(requiredFlowerId);
+        debugLog(
+            "Flower compatibility selected={} required={} resolvedRequired={} matched={} selectedTags={} requiredTags={}",
+            selectedFlowerId,
+            requiredFlowerId,
+            resolvedRequiredFlowerId,
+            matched,
+            getFlowerTagLocations(selectedFlowerId),
+            getFlowerTagLocations(resolvedRequiredFlowerId)
+        );
+        return matched;
+    }
 
-        if (selectedBlock != null) {
-            for (TagKey<Block> requiredTag : requiredTags) {
-                if (selectedBlock.defaultBlockState().is(requiredTag)) {
-                    return true;
-                }
+    private ResourceLocation resolveFlowerTypeTag(ResourceLocation flowerId) {
+        if (flowerId == null) {
+            return null;
+        }
+
+        if (flowerId.getNamespace().equals("forestry") && flowerId.getPath().startsWith("flower_type_")) {
+            return ResourceLocation.fromNamespaceAndPath(flowerId.getNamespace(), "flowers/" + flowerId.getPath().substring("flower_type_".length()));
+        }
+
+        return flowerId;
+    }
+
+    private boolean isFlowerInTag(ResourceLocation selectedFlowerId, ResourceLocation requiredFlowerId) {
+        if (selectedFlowerId == null || requiredFlowerId == null) {
+            return false;
+        }
+
+        Block block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getOptional(selectedFlowerId).orElse(null);
+        if (block != null) {
+            TagKey<Block> blockTagKey = TagKey.create(Registries.BLOCK, requiredFlowerId);
+            if (net.minecraft.core.registries.BuiltInRegistries.BLOCK.getTag(blockTagKey)
+                .map(tag -> tag.contains(block.builtInRegistryHolder()))
+                .orElse(false)) {
+                return true;
+            }
+
+            if (block.builtInRegistryHolder().tags().anyMatch(tag -> tag.location().equals(requiredFlowerId))) {
+                return true;
             }
         }
 
-        if (requiredBlock != null) {
-            for (TagKey<Block> selectedTag : selectedTags) {
-                if (requiredBlock.defaultBlockState().is(selectedTag)) {
+        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(selectedFlowerId).orElse(null);
+        if (item != null) {
+            ItemStack stack = item.getDefaultInstance();
+            BlockState state = Block.byItem(item).defaultBlockState();
+            if (state != null) {
+                Block itemBlock = state.getBlock();
+                TagKey<Block> blockTagKey = TagKey.create(Registries.BLOCK, requiredFlowerId);
+                if (net.minecraft.core.registries.BuiltInRegistries.BLOCK.getTag(blockTagKey)
+                    .map(tag -> tag.contains(itemBlock.builtInRegistryHolder()))
+                    .orElse(false)) {
                     return true;
                 }
+            }
+
+            if (item.builtInRegistryHolder().tags().anyMatch(tag -> tag.location().equals(requiredFlowerId))) {
+                return true;
             }
         }
 
         return false;
     }
 
-    private static Block resolveFlowerBlock(ResourceLocation id) {
-        if (!net.minecraft.core.registries.BuiltInRegistries.BLOCK.containsKey(id)) {
-            return null;
+    private static Set<ResourceLocation> getFlowerTagLocations(ResourceLocation id) {
+        Set<ResourceLocation> tags = new HashSet<>();
+        if (id == null) {
+            return tags;
         }
-        return net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(id);
-    }
 
-    private static List<TagKey<Block>> getCandidateFlowerTags(ResourceLocation id) {
-        List<TagKey<Block>> tags = new ArrayList<>();
-        tags.add(TagKey.create(Registries.BLOCK, id));
+        tags.add(id);
 
         if (!id.getPath().startsWith("flowers/")) {
-            tags.add(TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "flowers/" + id.getPath())));
+            tags.add(ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "flowers/" + id.getPath()));
+        }
+
+        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id).orElse(null);
+        if (item != null) {
+            item.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location()));
+        }
+
+        Block block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getOptional(id).orElse(null);
+        if (block != null) {
+            block.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location()));
         }
 
         return tags;
     }
 
-    private boolean canRunVirtualHive(VirtualHiveConfig config) {
-        if (config == null || config.speciesId == null || config.instances <= 0 || config.biomeId == null || config.flowerItemId == null) {
+    private boolean isBiomeCompatibleWithSpecies(ResourceLocation biomeId, IBeeSpecies species) {
+        if (biomeId == null || species == null) {
+            debugLog("Biome compatibility skipped because species or biome was null: species={}, biome={}", species, biomeId);
             return false;
         }
 
-        if (SpeciesUtil.getBeeSpecies(config.speciesId) == null) {
+        IClimateManager climateManager = IForestryApi.INSTANCE.getClimateManager();
+        if (climateManager == null) {
+            debugLog("Biome compatibility skipped because the Forestry climate manager was unavailable: species={}, biome={}", species.id(), biomeId);
+            return false;
+        }
+
+        ResourceKey<Biome> biomeKey = ResourceKey.create(Registries.BIOME, biomeId);
+        TemperatureType selectedTemperature = climateManager.getTemperature(biomeKey);
+        HumidityType selectedHumidity = climateManager.getHumidity(biomeKey);
+
+        IGenome genome = species.createIndividual().getGenome();
+        if (genome == null) {
+            debugLog("Biome compatibility skipped because the species genome was unavailable: species={}, biome={}", species.id(), biomeId);
+            return false;
+        }
+
+        boolean compatible = ClimateHelper.isWithinLimits(
+            selectedTemperature,
+            selectedHumidity,
+            species.getTemperature(),
+            genome.getActiveValue(BeeChromosomes.TEMPERATURE_TOLERANCE),
+            species.getHumidity(),
+            genome.getActiveValue(BeeChromosomes.HUMIDITY_TOLERANCE)
+        );
+
+        debugLog(
+            "Biome compatibility species={} selectedBiome={} selectedClimate=({}/{}) speciesClimate=({}/{}) compatibility={}",
+            species.id(),
+            biomeId,
+            selectedTemperature,
+            selectedHumidity,
+            species.getTemperature(),
+            species.getHumidity(),
+            compatible
+        );
+        return compatible;
+    }
+
+    private boolean canRunVirtualHive(VirtualHiveConfig config) {
+        if (config == null) {
+            debugLog("Virtual hive evaluation skipped: config was null");
+            return false;
+        }
+        if (config.speciesId == null) {
+            debugLog("Virtual hive evaluation skipped: species missing for hive instances={} biome={} flower={}", config.instances, config.biomeId, config.flowerItemId);
+            return false;
+        }
+        if (config.instances <= 0) {
+            debugLog("Virtual hive evaluation skipped: zero instances for species={} biome={} flower={}", config.speciesId, config.biomeId, config.flowerItemId);
+            return false;
+        }
+        if (config.biomeId == null) {
+            debugLog("Virtual hive evaluation skipped: biome missing for species={} instances={} flower={}", config.speciesId, config.instances, config.flowerItemId);
+            return false;
+        }
+        if (config.flowerItemId == null) {
+            debugLog("Virtual hive evaluation skipped: flower missing for species={} instances={} biome={}", config.speciesId, config.instances, config.biomeId);
+            return false;
+        }
+
+        IBeeSpecies species = SpeciesUtil.getBeeSpecies(config.speciesId);
+        if (species == null) {
+            debugLog("Virtual hive evaluation skipped: species not found {}", config.speciesId);
             return false;
         }
 
         AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
         if (traits == null) {
+            debugLog("Virtual hive evaluation skipped: species {} has no analyzed traits", config.speciesId);
             return false;
         }
 
-        if (traits.requiredBiomeId != null && !java.util.Objects.equals(config.biomeId, traits.requiredBiomeId)) {
+        if (!isBiomeCompatibleWithSpecies(config.biomeId, species)) {
+            debugLog("Virtual hive biome compatibility failed for species={} selectedBiome={}", config.speciesId, config.biomeId);
             return false;
         }
 
         if (traits.requiredFlowerId != null && !isCompatibleFlower(config.flowerItemId, traits.requiredFlowerId)) {
+            debugLog("Virtual hive flower compatibility failed for species={} selectedFlower={} requiredFlower={}", config.speciesId, config.flowerItemId, traits.requiredFlowerId);
             return false;
         }
 
+        debugLog("Virtual hive compatibility passed for species={} selectedBiome={} selectedFlower={} requiredFlower={}", config.speciesId, config.biomeId, config.flowerItemId, traits.requiredFlowerId);
         return true;
     }
 
@@ -890,7 +1038,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     }
 
     public boolean clickMenuButton(Player player, int id) {
-        LOGGER.info("BeeSXI button press: player={}, controller={}, buttonId={}", player.getGameProfile().getName(), this.worldPosition, id);
+        debugLog("BeeSXI button press: player={}, controller={}, buttonId={}", player.getGameProfile().getName(), this.worldPosition, id);
 
         if (id >= 0 && id <= TAB_BIOMES) {
             this.activeTab = id;
@@ -965,7 +1113,26 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 index = (index + direction + species.size()) % species.size();
             }
         }
-        this.virtualHives.get(line).speciesId = species.get(index);
+
+        VirtualHiveConfig config = this.virtualHives.get(line);
+        config.speciesId = species.get(index);
+
+        List<ResourceLocation> compatibleFlowers = getSelectableFlowerIds(config);
+        debugLog("Virtual hive species changed: line={} species={} compatibleFlowers={}", line, config.speciesId, compatibleFlowers);
+        if (config.flowerItemId == null) {
+            if (!compatibleFlowers.isEmpty()) {
+                config.flowerItemId = compatibleFlowers.get(0);
+            }
+            return;
+        }
+
+        if (compatibleFlowers.contains(config.flowerItemId)) {
+            return;
+        }
+
+        if (!compatibleFlowers.isEmpty()) {
+            config.flowerItemId = compatibleFlowers.get(0);
+        }
     }
 
     private void changeInstances(int line, int delta) {
@@ -1009,7 +1176,8 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
     private void cycleFlower(int line, int direction) {
         VirtualHiveConfig config = this.virtualHives.get(line);
-        List<ResourceLocation> flowers = getUnlockedFlowerIds();
+        List<ResourceLocation> flowers = getSelectableFlowerIds(config);
+        debugLog("Virtual hive flower selection changed: line={} currentFlower={} selectableFlowers={}", line, config.flowerItemId, flowers);
         if (flowers.isEmpty()) {
             config.flowerItemId = null;
             return;
@@ -1027,6 +1195,28 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             }
         }
         config.flowerItemId = flowers.get(index);
+    }
+
+    private List<ResourceLocation> getSelectableFlowerIds(VirtualHiveConfig config) {
+        List<ResourceLocation> unlockedFlowers = getUnlockedFlowerIds();
+        if (config == null || config.speciesId == null) {
+            return unlockedFlowers;
+        }
+
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+        if (traits == null || traits.requiredFlowerId == null) {
+            debugLog("Virtual hive flower selection has no species flower requirement: species={} unlockedFlowers={}", config.speciesId, unlockedFlowers);
+            return unlockedFlowers;
+        }
+
+        List<ResourceLocation> compatibleFlowers = new ArrayList<>();
+        for (ResourceLocation flowerId : unlockedFlowers) {
+            if (isCompatibleFlower(flowerId, traits.requiredFlowerId)) {
+                compatibleFlowers.add(flowerId);
+            }
+        }
+        debugLog("Virtual hive compatible flowers for species={} requiredFlower={} -> {}", config.speciesId, traits.requiredFlowerId, compatibleFlowers);
+        return compatibleFlowers;
     }
 
     private void startAnalyzeOne() {
@@ -1078,7 +1268,10 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         float speed = genome == null ? 1.0F : genome.getActiveValue(BeeChromosomes.SPEED);
         ResourceLocation activityId = genome == null ? null : genome.getActiveValue(BeeChromosomes.ACTIVITY);
         ResourceLocation biomeId = getCurrentBiomeId();
-        ResourceLocation flowerId = findFlowerFromAlleles(extractAlleles(genome));
+        ResourceLocation flowerId = findFlowerFromGenome(genome);
+        if (flowerId == null) {
+            flowerId = findFlowerFromAlleles(extractAlleles(genome));
+        }
 
         this.pendingAnalyzeSpeciesId = id;
         this.pendingAnalyzeSpeed = speed;
