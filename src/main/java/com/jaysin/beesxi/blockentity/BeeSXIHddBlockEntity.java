@@ -12,15 +12,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.jaysin.beesxi.BeeSXI;
 
-public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
+public class BeeSXIHddBlockEntity extends BlockEntity {
     private static final int SIZE = 27;
     private static final int DEFAULT_TOTAL_BYTES = 8192; //1024 too low, 32768 is 32kB is too high, but it's a good starting point for testing.
     private static final int MAX_TYPES = 27;
@@ -195,6 +193,86 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
         return ordered;
     }
 
+    public int getContainerSize() {
+        return SIZE;
+    }
+
+    public boolean isEmpty() {
+        return this.itemCounts.isEmpty();
+    }
+
+    public ItemStack getItem(int slot) {
+        if (slot < 0 || slot >= SIZE) {
+            return ItemStack.EMPTY;
+        }
+
+        List<ResourceLocation> types = getOrderedTypes();
+        if (slot >= types.size()) {
+            return ItemStack.EMPTY;
+        }
+
+        ResourceLocation id = types.get(slot);
+        var itemHolder = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+        if (itemHolder == null) {
+            return ItemStack.EMPTY;
+        }
+
+        int stored = this.itemCounts.getOrDefault(id, 0);
+        if (stored <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        return new ItemStack(itemHolder, stored);
+    }
+
+    public ItemStack removeItem(int slot, int amount) {
+        return ItemStack.EMPTY;
+    }
+
+    public ItemStack removeItemNoUpdate(int slot) {
+        return ItemStack.EMPTY;
+    }
+
+    public void setItem(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= SIZE) {
+            return;
+        }
+
+        if (stack.isEmpty()) {
+            List<ResourceLocation> types = getOrderedTypes();
+            if (slot < types.size()) {
+                this.itemCounts.remove(types.get(slot));
+                this.setChanged();
+            }
+            return;
+        }
+
+        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (id == null) {
+            return;
+        }
+
+        int toSet = Math.max(0, stack.getCount());
+        if (toSet <= 0) {
+            List<ResourceLocation> types = getOrderedTypes();
+            if (slot < types.size()) {
+                this.itemCounts.remove(types.get(slot));
+                this.setChanged();
+            }
+            return;
+        }
+
+        if (this.itemCounts.containsKey(id) || getRemainingCapacityFor(id) > 0) {
+            this.itemCounts.put(id, toSet);
+        }
+        this.setChanged();
+    }
+
+    public void clearContent() {
+        this.itemCounts.clear();
+        this.setChanged();
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.saveAdditional(tag, provider);
@@ -236,97 +314,6 @@ public class BeeSXIHddBlockEntity extends BlockEntity implements Container {
                 }
             }
         }
-    }
-
-    @Override
-    public int getContainerSize() {
-        return SIZE;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return this.itemCounts.isEmpty();
-    }
-
-    @Override
-    public ItemStack getItem(int slot) {
-        if (slot < 0 || slot >= SIZE) {
-            return ItemStack.EMPTY;
-        }
-
-        List<ResourceLocation> types = getOrderedTypes();
-        if (slot >= types.size()) {
-            return ItemStack.EMPTY;
-        }
-
-        ResourceLocation id = types.get(slot);
-        var itemHolder = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
-        if (itemHolder == null) {
-            return ItemStack.EMPTY;
-        }
-        int stored = this.itemCounts.getOrDefault(id, 0);
-        if (stored <= 0) {
-            return ItemStack.EMPTY;
-        }
-
-        return new ItemStack(itemHolder, stored);
-    }
-
-    @Override
-    public ItemStack removeItem(int slot, int amount) {
-        return ItemStack.EMPTY;
-    }
-
-    @Override
-    public ItemStack removeItemNoUpdate(int slot) {
-        return ItemStack.EMPTY;
-    }
-
-    @Override
-    public void setItem(int slot, ItemStack stack) {
-        if (slot < 0 || slot >= SIZE) {
-            return;
-        }
-
-        if (stack.isEmpty()) {
-            List<ResourceLocation> types = getOrderedTypes();
-            if (slot < types.size()) {
-                this.itemCounts.remove(types.get(slot));
-                this.setChanged();
-            }
-            return;
-        }
-
-        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (id == null) {
-            return;
-        }
-
-        int toSet = Math.max(0, stack.getCount());
-        if (toSet <= 0) {
-            List<ResourceLocation> types = getOrderedTypes();
-            if (slot < types.size()) {
-                this.itemCounts.remove(types.get(slot));
-                this.setChanged();
-            }
-            return;
-        }
-
-        if (this.itemCounts.containsKey(id) || getRemainingCapacityFor(id) > 0) {
-            this.itemCounts.put(id, toSet);
-        }
-        this.setChanged();
-    }
-
-    @Override
-    public boolean stillValid(Player player) {
-        return Container.stillValidBlockEntity(this, player);
-    }
-
-    @Override
-    public void clearContent() {
-        this.itemCounts.clear();
-        this.setChanged();
     }
 
     public CompoundTag toItemTag(HolderLookup.Provider provider) {
