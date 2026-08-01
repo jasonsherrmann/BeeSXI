@@ -1913,7 +1913,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public ItemStack getHddNetworkItem(int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return getHddNetworkItem(getInventoryPage(), slot);
+    }
+
+    public ItemStack getHddNetworkItem(int page, int slot) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
             return ItemStack.EMPTY;
         }
@@ -1921,7 +1925,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return extractHddNetworkItem(getInventoryPage(), slot, amount);
+    }
+
+    public ItemStack extractHddNetworkItem(int page, int slot, int amount) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
             return ItemStack.EMPTY;
         }
@@ -1967,7 +1975,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public int getHddBytesUsed(int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return getHddBytesUsed(getInventoryPage(), slot);
+    }
+
+    public int getHddBytesUsed(int page, int slot) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null) {
             return 0;
         }
@@ -1975,7 +1987,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public int getHddBytesTotal(int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return getHddBytesTotal(getInventoryPage(), slot);
+    }
+
+    public int getHddBytesTotal(int page, int slot) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null) {
             return 0;
         }
@@ -1983,7 +1999,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public int getHddTypesUsed(int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return getHddTypesUsed(getInventoryPage(), slot);
+    }
+
+    public int getHddTypesUsed(int page, int slot) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null) {
             return 0;
         }
@@ -1991,7 +2011,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public int getHddTypesMax(int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        return getHddTypesMax(getInventoryPage(), slot);
+    }
+
+    public int getHddTypesMax(int page, int slot) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null) {
             return 0;
         }
@@ -2003,7 +2027,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public void setHddNetworkItem(int slot, ItemStack stack) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
+        setHddNetworkItem(getInventoryPage(), slot, stack);
+    }
+
+    public void setHddNetworkItem(int page, int slot, ItemStack stack) {
+        BeeSXIHddBlockEntity hdd = getHddForPage(page);
         if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
             return;
         }

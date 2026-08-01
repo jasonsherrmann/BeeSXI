@@ -102,6 +102,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
                 linePage = Math.max(0, linePage - 1);
             } else if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
+                this.menu.beginInventoryPageChange(this.menu.getInventoryPage() - 1);
                 pressMenuButton(9100);
             }
         })
@@ -111,6 +112,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
                 linePage++;
             } else if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
+                this.menu.beginInventoryPageChange(this.menu.getInventoryPage() + 1);
                 pressMenuButton(9101);
             }
         })
@@ -435,6 +437,11 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryTab(GuiGraphics guiGraphics) {
+        if (this.menu.isInventoryPageChangePending() && !this.menu.isInventoryPageReady()) {
+            guiGraphics.drawString(this.font, "Loading...", this.leftPos + 108, this.topPos + 98, 0x000000, false);
+            return;
+        }
+
         //guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
         guiGraphics.drawString(this.font, "Each page shows one HDD", this.leftPos + 108, this.topPos + 98, 0x000000, false);
         int page = this.menu.getInventoryPage() + 1;
@@ -449,6 +456,10 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryCountOverlays(GuiGraphics guiGraphics) {
+        if (this.menu.isInventoryPageChangePending() && !this.menu.isInventoryPageReady()) {
+            return;
+        }
+
         BeeSXIServerMenu serverMenu = (BeeSXIServerMenu) this.menu;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {

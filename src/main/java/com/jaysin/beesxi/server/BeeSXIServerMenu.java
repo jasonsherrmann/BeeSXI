@@ -27,6 +27,8 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
     private final BeeSXIControllerBlockEntity controller;
     private final ContainerData data;
+    private int pendingInventoryPage = -1;
+    private boolean inventoryPageChangePending;
 
     public BeeSXIServerMenu(int containerId, Inventory playerInventory, BeeSXIControllerBlockEntity controller) {
         super(BeeSXI.BEESXI_SERVER_MENU.get(), containerId);
@@ -74,7 +76,11 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        return this.controller.clickMenuButton(player, id);
+        boolean handled = this.controller.clickMenuButton(player, id);
+        if (handled) {
+            this.broadcastChanges();
+        }
+        return handled;
     }
 
     @Override
@@ -150,7 +156,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
         @Override
         public ItemStack getItem() {
-            return BeeSXIServerMenu.this.controller.getHddNetworkItem(this.networkIndex);
+            return BeeSXIServerMenu.this.getHddNetworkItem(this.networkIndex);
         }
 
         @Override
@@ -160,13 +166,13 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
         @Override
         public void set(ItemStack stack) {
-            BeeSXIServerMenu.this.controller.setHddNetworkItem(this.networkIndex, stack);
+            BeeSXIServerMenu.this.setHddNetworkItem(this.networkIndex, stack);
             this.setChanged();
         }
 
         @Override
         public ItemStack remove(int amount) {
-            return BeeSXIServerMenu.this.controller.extractHddNetworkItem(this.networkIndex, amount);
+            return BeeSXIServerMenu.this.extractHddNetworkItem(this.networkIndex, amount);
         }
 
         @Override
@@ -178,6 +184,28 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         public boolean mayPickup(Player player) {
             return isActive();
         }
+    }
+
+    public void beginInventoryPageChange(int requestedPage) {
+        this.pendingInventoryPage = requestedPage;
+        this.inventoryPageChangePending = true;
+    }
+
+    public boolean isInventoryPageChangePending() {
+        return this.inventoryPageChangePending;
+    }
+
+    public boolean isInventoryPageReady() {
+        if (!this.inventoryPageChangePending) {
+            return true;
+        }
+        int currentPage = this.data.get(6);
+        if (currentPage == this.pendingInventoryPage) {
+            this.inventoryPageChangePending = false;
+            this.pendingInventoryPage = -1;
+            return true;
+        }
+        return false;
     }
 
     public int getActiveTab() {
@@ -205,7 +233,12 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public int getInventoryPage() {
-        return this.data.get(6);
+        int currentPage = this.data.get(6);
+        if (this.inventoryPageChangePending && currentPage == this.pendingInventoryPage) {
+            this.inventoryPageChangePending = false;
+            this.pendingInventoryPage = -1;
+        }
+        return currentPage;
     }
 
     public int getInventoryMaxPage() {
@@ -309,7 +342,10 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public ItemStack getHddNetworkItem(int slot) {
-        return this.controller.getHddNetworkItem(slot);
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return ItemStack.EMPTY;
+        }
+        return this.controller.getHddNetworkItem(getInventoryPage(), slot);
     }
 
     @Nullable
@@ -318,23 +354,45 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
-        return this.controller.extractHddNetworkItem(slot, amount);
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return ItemStack.EMPTY;
+        }
+        return this.controller.extractHddNetworkItem(getInventoryPage(), slot, amount);
+    }
+
+    public void setHddNetworkItem(int slot, ItemStack stack) {
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return;
+        }
+        this.controller.setHddNetworkItem(getInventoryPage(), slot, stack);
     }
 
     public int getHddBytesUsed(int slot) {
-        return this.controller.getHddBytesUsed(slot);
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return 0;
+        }
+        return this.controller.getHddBytesUsed(getInventoryPage(), slot);
     }
 
     public int getHddBytesTotal(int slot) {
-        return this.controller.getHddBytesTotal(slot);
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return 0;
+        }
+        return this.controller.getHddBytesTotal(getInventoryPage(), slot);
     }
 
     public int getHddTypesUsed(int slot) {
-        return this.controller.getHddTypesUsed(slot);
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return 0;
+        }
+        return this.controller.getHddTypesUsed(getInventoryPage(), slot);
     }
 
     public int getHddTypesMax(int slot) {
-        return this.controller.getHddTypesMax(slot);
+        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
+            return 0;
+        }
+        return this.controller.getHddTypesMax(getInventoryPage(), slot);
     }
 
 
