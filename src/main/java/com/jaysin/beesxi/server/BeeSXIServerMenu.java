@@ -47,7 +47,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     private void addControllerSlots() {
-        this.addSlot(new TabSlot(this.controller, ANALYZE_SLOT_INDEX, 108, 20, BeeSXIControllerBlockEntity.TAB_ANALYSIS));
+        this.addSlot(new TabSlot(this.controller, ANALYZE_SLOT_INDEX, 108, 62, BeeSXIControllerBlockEntity.TAB_ANALYSIS));
 
         int index = 0;
         for (int row = 0; row < 3; row++) {

@@ -8,15 +8,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomData;
-
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 
@@ -122,7 +118,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             .build());
 
         this.analyzeSlotButton = this.addRenderableWidget(Button.builder(Component.literal("Analyze"), b -> pressMenuButton(9000))
-            .bounds(x + 128, y + 18, 76, 20)
+            .bounds(x + 128, y + 60, 76, 20)
             .build());
 
         this.analyzedPrevButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> analyzedPage = Math.max(0, analyzedPage - 1))
@@ -217,7 +213,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInfoTab(GuiGraphics guiGraphics) {
-        guiGraphics.drawString(this.font, "Multiblock Info", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
+        //guiGraphics.drawString(this.font, "Multiblock Info", this.leftPos + 108, this.topPos + 32, 0x000000, false);
         guiGraphics.drawString(this.font,
             "Dimensions: " + this.menu.getStructureDimX() + "x" + this.menu.getStructureDimY() + "x" + this.menu.getStructureDimZ(),
             this.leftPos + 108, this.topPos + 40, 0x000000, false);
@@ -246,25 +242,28 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             return;
         }
 
-        guiGraphics.drawString(this.font, "Insert bee in analyzer slot", this.leftPos + 108, this.topPos + 44, 0xD2DBE8, false);
-        guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 54, 0x000000, false);
+        guiGraphics.drawString(this.font, "Insert bee, flower, or weather report in analyze slot", this.leftPos + 108, this.topPos + 84, 0x000000, false);
+        guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 114, 0x000000, false);
+        guiGraphics.drawString(this.font, "Flowers unlocked: " + this.menu.getUnlockedFlowerIds().size(), this.leftPos + 108, this.topPos + 124, 0x000000, false);
+        guiGraphics.drawString(this.font, "Biomes unlocked: " + this.menu.getUnlockedBiomeIds().size(), this.leftPos + 108, this.topPos + 134, 0x000000, false);
+
         String analyzeProgressText = this.menu.isAnalyzing() ? "Analysis Progress: " + this.menu.getAnalyzeProgressPercent() + "%" : "Analysis Progress: Ready";
-        guiGraphics.drawString(this.font, analyzeProgressText, this.leftPos + 108, this.topPos + 64, 0x000000, false);
+        guiGraphics.drawString(this.font, analyzeProgressText, this.leftPos + 108, this.topPos + 44, 0x000000, false);
         int slotX = this.leftPos + 108;
-        int slotY = this.topPos + 20;
+        int slotY = this.topPos + 62;
         guiGraphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF8A96A8);
         guiGraphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0xFF202A38);
         ItemStack input = this.menu.slots.get(0).getItem();
         if (!input.isEmpty()) {
-            guiGraphics.renderItem(input, this.leftPos + 108, this.topPos + 14);
-            captureHoveredStack(input, this.leftPos + 108, this.topPos + 14, mouseX, mouseY);
+            //guiGraphics.renderItem(input, this.leftPos + 108, this.topPos + 62);
+            captureHoveredStack(input, this.leftPos + 108, this.topPos + 62, mouseX, mouseY);
         }
     }
 
     private void renderBeeSpeciesTab(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         List<ResourceLocation> analyzed = this.menu.getAnalyzedSpeciesIds();
-        guiGraphics.drawString(this.font, "Unlocked Bee Species", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
-        guiGraphics.drawString(this.font, "Count: " + analyzed.size(), this.leftPos + 108, this.topPos + 36, 0x000000, false);
+        guiGraphics.drawString(this.font, "Unlocked Bee Species", this.leftPos + 108, this.topPos + 30, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "Count: " + analyzed.size(), this.leftPos + 108, this.topPos + 40, 0x000000, false);
 
         int maxLines = 6;
         int maxPage = Math.max(0, (analyzed.size() - 1) / maxLines);
@@ -285,7 +284,11 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             String activity = activityId == null ? "unknown" : activityId.getPath();
             int rowY = this.topPos + 52 + i * 18;
 
-            ItemStack beeIcon = createAnalyzedBeeIcon(speciesId);
+            ItemStack beeIcon = ItemStack.EMPTY;
+            IBeeSpecies beeSpecies = SpeciesUtil.getBeeSpecies(speciesId);
+            if (beeSpecies != null) {
+                beeIcon = beeSpecies.createStack(BeeLifeStage.DRONE);
+            }
             if (!beeIcon.isEmpty()) {
                 guiGraphics.renderItem(beeIcon, this.leftPos + 108, rowY);
                 captureHoveredStack(beeIcon, this.leftPos + 108, rowY, mouseX, mouseY);
@@ -297,8 +300,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderSimpleUnlockList(GuiGraphics guiGraphics, String title, List<ResourceLocation> ids) {
-        guiGraphics.drawString(this.font, title, this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
-        guiGraphics.drawString(this.font, "Count: " + ids.size(), this.leftPos + 108, this.topPos + 36, 0x000000, false);
+        guiGraphics.drawString(this.font, title, this.leftPos + 108, this.topPos + 30, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "Count: " + ids.size(), this.leftPos + 108, this.topPos + 40, 0x000000, false);
 
         int maxLines = 12;
         int maxPage = Math.max(0, (ids.size() - 1) / maxLines);
@@ -316,24 +319,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         }
     }
 
-    private ItemStack createAnalyzedBeeIcon(ResourceLocation speciesId) {
-        IBeeSpecies beeSpecies = SpeciesUtil.getBeeSpecies(speciesId);
-        if (beeSpecies == null) {
-            return ItemStack.EMPTY;
-        }
-
-        ItemStack beeIcon = beeSpecies.createStack(BeeLifeStage.DRONE);
-        if (beeIcon.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-
-        CompoundTag tag = beeIcon.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        tag.putInt("forestry:analyzed", 1);
-        tag.putInt("Forestry:Analyzed", 1);
-        beeIcon.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        return beeIcon;
-    }
-
     private void renderVirtualTab(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         int start = this.linePage * VISIBLE_LINES;
         int cpuCount = this.menu.getCpuCount();
@@ -344,7 +329,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             start = this.linePage * VISIBLE_LINES;
         }
 
-        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount + "Tb ", this.leftPos + 108, this.topPos + 24, 0x111111, false);
+        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount + "Tb ", this.leftPos + 118, this.topPos + 28, 0x111111, false);
 
         int rowBackground = 0x55262f3b;
 
@@ -450,7 +435,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryTab(GuiGraphics guiGraphics) {
-        guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
+        //guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
         guiGraphics.drawString(this.font, "Each page shows one HDD", this.leftPos + 108, this.topPos + 98, 0x000000, false);
         int page = this.menu.getInventoryPage() + 1;
         int maxPage = this.menu.getInventoryMaxPage() + 1;
