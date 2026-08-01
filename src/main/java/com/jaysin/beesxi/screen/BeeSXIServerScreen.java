@@ -5,17 +5,17 @@ import java.util.List;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.entity.player.Inventory;
 
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
@@ -324,8 +324,9 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             return ItemStack.EMPTY;
         }
 
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag = beeIcon.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         tag.putInt("forestry:analyzed", 1);
+        tag.putInt("Forestry:Analyzed", 1);
         beeIcon.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         return beeIcon;
     }
@@ -358,13 +359,9 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             int y = this.topPos + ROW_BASE_Y + row * LINE_HEIGHT;
 
             guiGraphics.fill(this.leftPos + 130, y, this.leftPos + 398, y + 16, rowBackground);
-            guiGraphics.drawString(this.font, "CPU " + (absoluteLine + 1), this.leftPos + 190, y + 4, 0x000000, false);
-            if (species != null) {
-                guiGraphics.drawString(this.font, trim(species.getPath(), 10), this.leftPos + 228, y + 4, 0x000000, false);
-            }
             guiGraphics.drawString(this.font, biome == null ? "b:*" : "b:" + trim(biome.getPath(), 8), this.leftPos + 244, y + 4, 0x6EA8FF, false);
             guiGraphics.drawString(this.font, flower == null ? "f:*" : "f:" + trim(flower.getPath(), 8), this.leftPos + 292, y + 4, 0xB7A46B, false);
-            guiGraphics.drawString(this.font, "S" + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 340, y + 4, 0xA7E8B6, false);
+            //guiGraphics.drawString(this.font, "S" + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 340, y + 4, 0xA7E8B6, false);
             guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 372, y + 4, 0xFFFF99, false);
 
             renderSpeciesRowIcons(guiGraphics, species, y, mouseX, mouseY);

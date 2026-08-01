@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "forestry:portable_analyzer"
+    },
+    "X": {
+      "item": "forestry:raintank"
+    },
+    "Y": {
+      "item": "minecraft:iron_ingot"
+    },
+    "Z": {
+      "item": "forestry:woven_silk"
+    }
+
+  },
+  "pattern": [
+    "YZY",
+    "YWY",
+    "YXY"
+  ],
+  "result": {
+    "id": "beesxi:beesxi_weather_reporter",
+    "count": 1
+  },
+  "show_notification": true
+}

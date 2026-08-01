@@ -22,21 +22,145 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.inventory.ContainerData;
+
+import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import com.jaysin.beesxi.BeeSXI;
 import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
 
 public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Container, MenuProvider {
-    private static final int SIZE = 1;
+    private static final int SIZE = 2;
+    private static final int INPUT_SLOT = 0;
+    private static final int OUTPUT_SLOT = 1;
     private static final int REPORT_DURATION_TICKS = 20 * 60 * 10;
+    private static final int REPORT_TOTAL_RF_COST = 100_000;
+    private static final int ENERGY_CAPACITY = 100_000;
     private static final String WEATHER_BIOME_KEY = "BeeSXIWeatherReportBiome";
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
+    private boolean processing;
     private int progressTicks;
+    private int consumedEnergy;
+    private int energy;
     private ResourceLocation pendingBiome;
+
+    private final IEnergyStorage energyStorage = new IEnergyStorage() {
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            return BeeSXIWeatherReporterBlockEntity.this.receiveEnergy(maxReceive, simulate);
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return BeeSXIWeatherReporterBlockEntity.this.getEnergyStored();
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return BeeSXIWeatherReporterBlockEntity.this.getMaxEnergyStored();
+        }
+
+        @Override
+        public boolean canExtract() {
+            return false;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
+        }
+    };
+
+    private final ContainerData containerData = new ContainerData() {
+        @Override
+        public int get(int index) {
+            return switch (index) {
+                case 0 -> BeeSXIWeatherReporterBlockEntity.this.processing ? 1 : 0;
+                case 1 -> BeeSXIWeatherReporterBlockEntity.this.progressTicks;
+                case 2 -> BeeSXIWeatherReporterBlockEntity.this.energy;
+                case 3 -> ENERGY_CAPACITY;
+                default -> 0;
+            };
+        }
+
+        @Override
+        public void set(int index, int value) {
+            switch (index) {
+                case 0 -> BeeSXIWeatherReporterBlockEntity.this.processing = value != 0;
+                case 1 -> BeeSXIWeatherReporterBlockEntity.this.progressTicks = Math.max(0, Math.min(REPORT_DURATION_TICKS, value));
+                case 2 -> BeeSXIWeatherReporterBlockEntity.this.energy = Math.max(0, Math.min(ENERGY_CAPACITY, value));
+                default -> {
+                }
+            }
+        }
+
+        @Override
+        public int getCount() {
+            return 4;
+        }
+    };
 
     public BeeSXIWeatherReporterBlockEntity(BlockPos pos, BlockState state) {
         super(BeeSXI.BEESXI_WEATHER_REPORTER_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    public IEnergyStorage getEnergyStorage() {
+        return this.energyStorage;
+    }
+
+    public ContainerData getContainerData() {
+        return this.containerData;
+    }
+
+    public boolean isProcessing() {
+        return this.processing;
+    }
+
+    public int getProgressPercent() {
+        return Math.max(0, Math.min(100, (int) ((this.progressTicks * 100L) / REPORT_DURATION_TICKS)));
+    }
+
+    public int getEnergyStored() {
+        return this.energy;
+    }
+
+    public int getMaxEnergyStored() {
+        return ENERGY_CAPACITY;
+    }
+
+    public ResourceLocation getCurrentBiome() {
+        if (this.level == null) {
+            return null;
+        }
+        return this.level.getBiome(this.worldPosition)
+            .unwrapKey()
+            .map(ResourceKey::location)
+            .orElse(null);
+    }
+
+    public int receiveEnergy(int maxReceive, boolean simulate) {
+        if (maxReceive <= 0) {
+            return 0;
+        }
+        int accepted = Math.min(getMaxEnergyStored() - this.energy, maxReceive);
+        if (!simulate && accepted > 0) {
+            this.energy += accepted;
+            setChanged();
+        }
+        return Math.max(0, accepted);
+    }
+
+    private void resetProcess() {
+        this.processing = false;
+        this.progressTicks = 0;
+        this.consumedEnergy = 0;
+        this.pendingBiome = null;
     }
 
     public void processScheduledTick(Level level, BlockPos pos, BlockState state, int elapsedTicks) {
@@ -44,34 +168,65 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
             return;
         }
 
-        ItemStack stack = this.items.get(0);
-        if (stack.isEmpty() || !stack.is(Items.PAPER)) {
-            this.progressTicks = 0;
-            this.pendingBiome = null;
-            return;
-        }
+        ItemStack inputStack = this.items.get(INPUT_SLOT);
+        ItemStack outputStack = this.items.get(OUTPUT_SLOT);
 
-        if (isWeatherReport(stack)) {
-            this.progressTicks = 0;
-            this.pendingBiome = null;
-            return;
-        }
+        if (!this.processing) {
+            if (inputStack.isEmpty() || !inputStack.is(Items.PAPER) || isWeatherReport(inputStack) || !outputStack.isEmpty()) {
+                resetProcess();
+                return;
+            }
 
-        ResourceLocation biomeAtPosition = level.getBiome(pos)
-            .unwrapKey()
-            .map(ResourceKey::location)
-            .orElse(null);
-        if (biomeAtPosition == null) {
-            this.progressTicks = 0;
-            this.pendingBiome = null;
-            return;
-        }
+            ResourceLocation biomeAtPosition = level.getBiome(pos)
+                .unwrapKey()
+                .map(ResourceKey::location)
+                .orElse(null);
+            if (biomeAtPosition == null) {
+                resetProcess();
+                return;
+            }
 
-        if (!biomeAtPosition.equals(this.pendingBiome)) {
+            inputStack.shrink(1);
+            if (inputStack.isEmpty()) {
+                this.items.set(INPUT_SLOT, ItemStack.EMPTY);
+            }
             this.pendingBiome = biomeAtPosition;
+            this.processing = true;
+            this.progressTicks = 0;
+            this.consumedEnergy = 0;
+            setChanged();
+            return;
         }
 
-        this.progressTicks += Math.max(1, elapsedTicks);
+        if (!outputStack.isEmpty()) {
+            return;
+        }
+
+        if (this.pendingBiome == null) {
+            resetProcess();
+            return;
+        }
+
+        int deltaTicks = Math.max(1, elapsedTicks);
+        int remainingTicks = REPORT_DURATION_TICKS - this.progressTicks;
+        if (remainingTicks <= 0) {
+            remainingTicks = 1;
+        }
+        int stepTicks = Math.min(deltaTicks, remainingTicks);
+
+        int targetConsumed = (int) (((long) (this.progressTicks + stepTicks) * REPORT_TOTAL_RF_COST + REPORT_DURATION_TICKS - 1L) / REPORT_DURATION_TICKS);
+        int requiredForStep = Math.max(0, targetConsumed - this.consumedEnergy);
+
+        if (requiredForStep > 0) {
+            int available = Math.min(requiredForStep, this.energy);
+            if (available < requiredForStep) {
+                return;
+            }
+            this.energy -= requiredForStep;
+            this.consumedEnergy += requiredForStep;
+        }
+
+        this.progressTicks += stepTicks;
         if (this.progressTicks < REPORT_DURATION_TICKS) {
             setChanged();
             return;
@@ -82,10 +237,9 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
         tag.putString(WEATHER_BIOME_KEY, this.pendingBiome.toString());
         output.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         output.set(DataComponents.CUSTOM_NAME, Component.literal("Weather Report: " + this.pendingBiome.getPath()));
-        this.items.set(0, output);
+        this.items.set(OUTPUT_SLOT, output);
 
-        this.progressTicks = 0;
-        this.pendingBiome = null;
+        resetProcess();
         setChanged();
     }
 
@@ -102,7 +256,10 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.saveAdditional(tag, provider);
         ContainerHelper.saveAllItems(tag, this.items, provider);
+        tag.putBoolean("Processing", this.processing);
         tag.putInt("ProgressTicks", this.progressTicks);
+        tag.putInt("ConsumedEnergy", this.consumedEnergy);
+        tag.putInt("Energy", this.energy);
         tag.putString("PendingBiome", this.pendingBiome == null ? "" : this.pendingBiome.toString());
     }
 
@@ -111,8 +268,14 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
         super.loadAdditional(tag, provider);
         this.items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
         ContainerHelper.loadAllItems(tag, this.items, provider);
+        this.processing = tag.getBoolean("Processing");
         this.progressTicks = Math.max(0, tag.getInt("ProgressTicks"));
+        this.consumedEnergy = Math.max(0, Math.min(REPORT_TOTAL_RF_COST, tag.getInt("ConsumedEnergy")));
+        this.energy = Math.max(0, Math.min(ENERGY_CAPACITY, tag.getInt("Energy")));
         this.pendingBiome = ResourceLocation.tryParse(tag.getString("PendingBiome"));
+        if (!this.processing || this.progressTicks <= 0 || this.pendingBiome == null) {
+            resetProcess();
+        }
     }
 
     public void writeMenuData(FriendlyByteBuf buffer) {
@@ -136,7 +299,12 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
 
     @Override
     public boolean isEmpty() {
-        return this.items.get(0).isEmpty();
+        for (ItemStack stack : this.items) {
+            if (!stack.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -160,7 +328,10 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
 
     @Override
     public void setItem(int slot, ItemStack stack) {
-        if (stack.getCount() > 1) {
+        if (slot < 0 || slot >= SIZE) {
+            return;
+        }
+        if (slot == INPUT_SLOT && stack.getCount() > 1) {
             stack.setCount(1);
         }
         this.items.set(slot, stack);
@@ -169,7 +340,7 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
 
     @Override
     public boolean canPlaceItem(int slot, ItemStack stack) {
-        return slot == 0 && stack.is(Items.PAPER);
+        return slot == INPUT_SLOT && stack.is(Items.PAPER) && !isWeatherReport(stack);
     }
 
     @Override
@@ -179,7 +350,10 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
 
     @Override
     public void clearContent() {
-        this.items.clear();
+        for (int i = 0; i < this.items.size(); i++) {
+            this.items.set(i, ItemStack.EMPTY);
+        }
+        resetProcess();
         setChanged();
     }
 }

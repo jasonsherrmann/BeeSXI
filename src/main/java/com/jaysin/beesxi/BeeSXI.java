@@ -175,6 +175,11 @@ public class BeeSXI {
             (blockEntity, context) -> blockEntity.getEnergyStorage()
         );
         event.registerBlockEntity(
+            Capabilities.EnergyStorage.BLOCK,
+            BEESXI_WEATHER_REPORTER_BLOCK_ENTITY.get(),
+            (blockEntity, context) -> blockEntity.getEnergyStorage()
+        );
+        event.registerBlockEntity(
             Capabilities.ItemHandler.BLOCK,
             BEESXI_EXPORT_BUS_BLOCK_ENTITY.get(),
             (blockEntity, context) -> blockEntity.getOutputItemHandler()

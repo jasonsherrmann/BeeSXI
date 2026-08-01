@@ -4,7 +4,6 @@ Needed for MVP
 
 Add recipes (lots of iron, existing casings from forestry, circut boards and electron tubes, sea lanterns)
 clean up analyze tab, virtual hive tab
-remove debug button presses from log
 Make machine stop if inventories are full
 Balance the production values
 Make sure production percentages are accurate

@@ -10,6 +10,9 @@
   "block.beesxi.molecular_analyzer": "Molecular Analyzer",
   "menu.beesxi.beesxi_server": "BeeSXI Server",
   "menu.beesxi.beesxi_export_bus": "BeeSXI Export Bus",
+  "gui.beesxi.weather_reporter.status_idle": "Status: Idle",
+  "gui.beesxi.weather_reporter.status_processing": "Status: Processing (%s%%)",
+  "gui.beesxi.weather_reporter.power": "Power: %s / %s RF",
   "item.beesxi.capacitor_empty": "Empty Capacitor",
   "item.beesxi.capacitor_filled": "Oil-Filled Capacitor"
 }
