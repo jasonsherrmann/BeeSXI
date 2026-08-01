@@ -1,0 +1,29 @@
+{
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/silicon_wafer",
+  "liquid": {
+    "amount": 5000,
+    "id": "forestry:ethanol"
+  },
+  "recipe": {
+    "category": "misc",
+    "key": {
+      "A": {
+        "item": "minecraft:copper_ingot"
+      },
+      "B": {
+        "item": "minecraft:sand"
+      }
+    },
+    "pattern": [
+      "A",
+      "B"
+    ],
+    "result": {
+      "count": 1,
+      "id": "beesxi:silicon_wafer"
+    }
+  },
+  "time": 250
+}

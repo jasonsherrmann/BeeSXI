@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "X": {
+      "item": "beesxi:silicon_wafer"
+    },
+    "Z": {
+      "item": "forestry:ender_electron_tube"
+    },
+    "Y": {
+      "item": "beesxi:beesxi_casing"
+    }
+  },
+  "pattern": [
+    "YZY",
+    "ZXZ",
+    "YZY"
+  ],
+  "result": {
+    "id": "beesxi:beesxi_ram",
+    "count": 1
+  },
+  "show_notification": true
+}
