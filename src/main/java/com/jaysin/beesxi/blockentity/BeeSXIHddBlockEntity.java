@@ -12,11 +12,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.jaysin.beesxi.BeeSXI;
+import com.jaysin.beesxi.blocks.BeeSXIHddBlock;
 
 public class BeeSXIHddBlockEntity extends BlockEntity {
     private static final int SIZE = 27;
@@ -24,11 +26,16 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
     private static final int MAX_TYPES = 27;
     private static final int ITEMS_PER_BYTE = 8;
 
-    public enum StorageState {
+    public enum StorageState implements StringRepresentable {
         EMPTY,
         HAS_ITEMS,
         FULL_TYPES_BUT_NOT_ITEMS,
-        FULL
+        FULL;
+
+        @Override
+        public String getSerializedName() {
+            return this.name().toLowerCase();
+        }
     }
 
     private final Map<ResourceLocation, Integer> itemCounts = new LinkedHashMap<>();
@@ -70,25 +77,45 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
         return MAX_TYPES;
     }
 
+    private void updateStoredState() {
+        if (this.level == null) {
+            return;
+        }
+
+        BlockState state = this.getBlockState();
+        if (!(state.getBlock() instanceof BeeSXIHddBlock)) {
+            return;
+        }
+
+        StorageState newState = getStorageState();
+        if (state.getValue(BeeSXIHddBlock.STORAGE_STATE) != newState) {
+            this.level.setBlock(this.worldPosition, state.setValue(BeeSXIHddBlock.STORAGE_STATE, newState), 3);
+        }
+    }
+
     public StorageState getStorageState() {
         if (this.itemCounts.isEmpty()) {
             return StorageState.EMPTY;
         }
 
-        int maxItems = getMaxItemsForTypes(Math.min(getUsedTypesInternal(), MAX_TYPES));
-        boolean fullTypes = getUsedTypesInternal() >= MAX_TYPES;
-        boolean fullItems = getStoredItems() >= maxItems;
-        if (fullTypes && !fullItems) {
-            return StorageState.FULL_TYPES_BUT_NOT_ITEMS;
-        }
-        if (fullItems) {
+        int usedTypes = getUsedTypesInternal();
+        int usedBytes = getUsedBytes();
+        int totalCapacityBytes = getTotalCapacityBytes();
+
+        boolean reachedTypeLimit = usedTypes >= MAX_TYPES;
+        boolean reachedItemLimit = usedBytes >= totalCapacityBytes;
+
+        if (reachedItemLimit) {
             return StorageState.FULL;
+        }
+        if (reachedTypeLimit) {
+            return StorageState.FULL_TYPES_BUT_NOT_ITEMS;
         }
         return StorageState.HAS_ITEMS;
     }
 
-    private int getMaxItemsForTypes(int ignoredTypesUsed) {
-        return Math.max(0, getTotalBytes() * ITEMS_PER_BYTE);
+    private int getMaxItemsCapacity() {
+        return Math.max(0, getTotalCapacityBytes() * ITEMS_PER_BYTE);
     }
 
     private int getRemainingCapacityFor(ResourceLocation id) {
@@ -97,7 +124,7 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
         if (resultingTypes > MAX_TYPES) {
             return 0;
         }
-        int maxItems = getMaxItemsForTypes(resultingTypes);
+        int maxItems = getMaxItemsCapacity();
         return Math.max(0, maxItems - getStoredItems());
     }
 
@@ -118,6 +145,7 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
 
         this.itemCounts.merge(id, canInsert, Integer::sum);
         setChanged();
+        updateStoredState();
 
         if (canInsert >= stack.getCount()) {
             return ItemStack.EMPTY;
@@ -170,6 +198,7 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
         }
 
         this.setChanged();
+        updateStoredState();
         return new ItemStack(itemHolder, removed);
     }
 
@@ -266,11 +295,13 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
             this.itemCounts.put(id, toSet);
         }
         this.setChanged();
+        updateStoredState();
     }
 
     public void clearContent() {
         this.itemCounts.clear();
         this.setChanged();
+        updateStoredState();
     }
 
     @Override
@@ -314,6 +345,8 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
                 }
             }
         }
+
+        updateStoredState();
     }
 
     public CompoundTag toItemTag(HolderLookup.Provider provider) {
@@ -328,5 +361,6 @@ public class BeeSXIHddBlockEntity extends BlockEntity {
             loadAdditional(tag, provider);
         }
         this.setChanged();
+        updateStoredState();
     }
 }

@@ -3,8 +3,9 @@
     "assembled=false": {
       "model": "beesxi:block/beesxi_hdd"
     },
-    "assembled=true": {
-      "model": "beesxi:block/beesxi_hdd_assembled"
-    }
+    "assembled=true,storage_state=empty": {"model": "beesxi:block/beesxi_hdd_assembled_empty"},
+    "assembled=true,storage_state=has_items": {"model": "beesxi:block/beesxi_hdd_assembled_has_items"},
+    "assembled=true,storage_state=full_types_but_not_items": {"model": "beesxi:block/beesxi_hdd_assembled_types_full"},
+    "assembled=true,storage_state=full": {"model": "beesxi:block/beesxi_hdd_assembled_full"}
   }
 }

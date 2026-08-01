@@ -16,10 +16,23 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 
 public class BeeSXIHddBlock extends BeeSXIPartBlock implements EntityBlock {
+    public static final EnumProperty<BeeSXIHddBlockEntity.StorageState> STORAGE_STATE =
+            EnumProperty.create("storage_state", BeeSXIHddBlockEntity.StorageState.class);
+
     public BeeSXIHddBlock(Properties properties) {
         super(BeeSXIPartType.HDD, properties);
+        this.registerDefaultState(this.stateDefinition.any().setValue(ASSEMBLED, false)
+                .setValue(STORAGE_STATE, BeeSXIHddBlockEntity.StorageState.EMPTY));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(@Nonnull StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
+        builder.add(STORAGE_STATE);
     }
 
     @Nullable
