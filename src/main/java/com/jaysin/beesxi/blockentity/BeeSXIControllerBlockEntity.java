@@ -166,6 +166,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
     private long lastValidationTick;
     private long lastProductionTick;
     private boolean structureDirty = true;
+    private boolean machineStoppedForInventoryFull;
 
     private final ContainerData containerData = new ContainerData() {
         @Override
@@ -199,6 +200,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount;
                 case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount;
                 case 27 -> BeeSXIControllerBlockEntity.this.uiExportBusCount;
+                case 28 -> BeeSXIControllerBlockEntity.this.machineStoppedForInventoryFull ? 1 : 0;
                 default -> 0;
             };
         }
@@ -233,6 +235,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
                 case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount = Math.max(0, value);
                 case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount = Math.max(0, value);
                 case 27 -> BeeSXIControllerBlockEntity.this.uiExportBusCount = Math.max(0, value);
+                case 28 -> BeeSXIControllerBlockEntity.this.machineStoppedForInventoryFull = value != 0;
                 default -> {
                 }
             }
@@ -240,7 +243,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
 
         @Override
         public int getCount() {
-            return 28;
+            return 29;
         }
     };
 
@@ -640,6 +643,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
         }
 
         chargeBatteriesFromSupplies();
+        updateMachineStoppedForInventoryFull();
 
         boolean hasRunnableHives = getRunningInstances() > 0;
         boolean hasInstancePower = !hasRunnableHives || consumeInstanceEnergyPerTick();
@@ -648,7 +652,7 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             tickAnalyzeProcess();
         }
 
-        if (hasInstancePower && gameTime - this.lastProductionTick >= PRODUCTION_INTERVAL) {
+        if (!this.machineStoppedForInventoryFull && hasInstancePower && gameTime - this.lastProductionTick >= PRODUCTION_INTERVAL) {
             this.lastProductionTick = gameTime;
             produceVirtualHiveDrops();
         }
@@ -1437,6 +1441,30 @@ public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block
             return 1.0D / 12.0D;
         }
         return 1.0D;
+    }
+
+    private void updateMachineStoppedForInventoryFull() {
+        boolean stopped = false;
+        for (VirtualHiveConfig config : this.virtualHives) {
+            if (!canRunVirtualHive(config)) {
+                continue;
+            }
+
+            IBeeSpecies species = SpeciesUtil.getBeeSpecies(config.speciesId);
+            if (species == null) {
+                continue;
+            }
+
+            if (!hasOutputCapacityForSpecies(species)) {
+                stopped = true;
+                break;
+            }
+        }
+
+        if (this.machineStoppedForInventoryFull != stopped) {
+            this.machineStoppedForInventoryFull = stopped;
+            sync();
+        }
     }
 
     private void produceVirtualHiveDrops() {

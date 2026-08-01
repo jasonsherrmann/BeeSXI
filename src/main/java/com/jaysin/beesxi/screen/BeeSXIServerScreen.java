@@ -28,7 +28,7 @@ import forestry.core.utils.SpeciesUtil;
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
     private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu_new.png");
 
-    private static final int VISIBLE_LINES = 6;
+    private static final int VISIBLE_LINES = 7;
     private static final int LINE_HEIGHT = 18;
     private static final int ROW_BASE_Y = 47;
 
@@ -135,14 +135,14 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         for (int i = 0; i < VISIBLE_LINES; i++) {
             int rowY = y + ROW_BASE_Y + i * LINE_HEIGHT;
             int line = i;
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 0)).bounds(x + 90, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 1)).bounds(x + 108, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("-"), b -> pressLineButton(line, 2)).bounds(x + 332, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("+"), b -> pressLineButton(line, 3)).bounds(x + 350, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 4)).bounds(x + 206, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 5)).bounds(x + 224, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 6)).bounds(x + 266, rowY, 16, 16).build()));
-            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 7)).bounds(x + 284, rowY, 16, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 0)).bounds(x + 76, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 1)).bounds(x + 90, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("-"), b -> pressLineButton(line, 2)).bounds(x + 332, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("+"), b -> pressLineButton(line, 3)).bounds(x + 346, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 4)).bounds(x + 176, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 5)).bounds(x + 190, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal("<"), b -> pressLineButton(line, 6)).bounds(x + 276, rowY, 12, 16).build()));
+            this.lineButtons.add(this.addRenderableWidget(Button.builder(Component.literal(">"), b -> pressLineButton(line, 7)).bounds(x + 290, rowY, 12, 16).build()));
         }
 
         updateWidgetVisibility();
@@ -195,6 +195,9 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         String usageText = "Usage: " + totalRfPerTick + " RF/t (Instances " + instanceRfPerTick + ", Analysis " + analyzeRfPerTick + ")";
         guiGraphics.drawString(this.font, powerText, this.leftPos + 118, this.topPos + 2, 0x000000, false);
         guiGraphics.drawString(this.font, usageText, this.leftPos + 118, this.topPos + 11, 0x000000, false);
+        if (this.menu.isMachineStoppedForInventoryFull()) {
+            guiGraphics.drawString(this.font, "Machine Stopped: Inventory Full", this.leftPos + 118, this.topPos + 20, 0xC03030, false);
+        }
 
         if (tab == BeeSXIControllerBlockEntity.TAB_ANALYSIS) {
             renderAnalysisTab(guiGraphics, mouseX, mouseY);
@@ -341,7 +344,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             start = this.linePage * VISIBLE_LINES;
         }
 
-        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount*512 + "Tb ", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
+        guiGraphics.drawString(this.font, "CPU Cores: " + cpuCount + "  RAM " + ramCount + "Tb ", this.leftPos + 108, this.topPos + 24, 0x111111, false);
 
         int rowBackground = 0x55262f3b;
 
@@ -358,16 +361,34 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             float speed = this.menu.getSpeedForLine(absoluteLine);
             int y = this.topPos + ROW_BASE_Y + row * LINE_HEIGHT;
 
-            guiGraphics.fill(this.leftPos + 130, y, this.leftPos + 398, y + 16, rowBackground);
-            guiGraphics.drawString(this.font, biome == null ? "b:*" : "b:" + trim(biome.getPath(), 8), this.leftPos + 244, y + 4, 0x6EA8FF, false);
-            guiGraphics.drawString(this.font, flower == null ? "f:*" : "f:" + trim(flower.getPath(), 8), this.leftPos + 292, y + 4, 0xB7A46B, false);
+            guiGraphics.fill(this.leftPos + 76, y, this.leftPos + 398, y + 16, rowBackground);
+            guiGraphics.drawString(this.font, biome == null ? "none" : trim(biome.getPath(), 14), this.leftPos + 204, y + 4, 0x6EA8FF, false);
+            renderFlowerIcon(guiGraphics, flower, y, mouseX, mouseY);
+            //guiGraphics.drawString(this.font, flower == null ? "f:*" : "f:" + trim(flower.getPath(), 8), this.leftPos + 292, y + 4, 0xB7A46B, false);
             //guiGraphics.drawString(this.font, "S" + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 340, y + 4, 0xA7E8B6, false);
-            guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 372, y + 4, 0xFFFF99, false);
+            guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 366, y + 4, 0xFFFF99, false);
 
             renderSpeciesRowIcons(guiGraphics, species, y, mouseX, mouseY);
         }
     }
+    private void renderFlowerIcon(GuiGraphics guiGraphics, ResourceLocation flowerId, int rowY, int mouseX, int mouseY) {
+    ItemStack flowerStack = ItemStack.EMPTY;
 
+    if (flowerId != null) {
+        net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(flowerId);
+        if (item != Items.AIR) {
+            flowerStack = new ItemStack(item);
+        }
+    }
+
+    if (flowerStack.isEmpty()) {
+        flowerStack = new ItemStack(Items.BARRIER);
+    }
+
+    int x = this.leftPos + 304;
+    guiGraphics.renderItem(flowerStack, x, rowY);
+    captureHoveredStack(flowerStack, x, rowY, mouseX, mouseY);
+}
     private void renderSpeciesRowIcons(GuiGraphics guiGraphics, ResourceLocation speciesId, int rowY, int mouseX, int mouseY) {
         ItemStack beeIcon = ItemStack.EMPTY;
         List<ItemStack> productIcons = new ArrayList<>();
@@ -385,13 +406,13 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             beeIcon = new ItemStack(Items.BARRIER);
         }
 
-        int beeX = this.leftPos + 130;
+        int beeX = this.leftPos + 104;
         guiGraphics.renderItem(beeIcon, beeX, rowY);
         captureHoveredStack(beeIcon, beeX, rowY, mouseX, mouseY);
 
         for (int i = 0; i < Math.min(3, productIcons.size()); i++) {
             ItemStack icon = productIcons.get(i);
-            int x = this.leftPos + 148 + i * 18;
+            int x = this.leftPos + 122 + i * 18;
             guiGraphics.renderItem(icon, x, rowY);
             captureHoveredStack(icon, x, rowY, mouseX, mouseY);
         }
@@ -544,12 +565,42 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         }
     }
 
-    private static String trim(String value, int maxChars) {
-        if (value.length() <= maxChars) {
-            return value;
-        }
-        return value.substring(0, maxChars - 3) + "...";
+private static String trim(String value, int maxChars) {
+    if (value == null || value.isBlank()) {
+        return "";
     }
+
+    String normalized = value.replace('_', ' ').replace('-', ' ');
+    StringBuilder formatted = new StringBuilder();
+    boolean capitalizeNext = true;
+
+    for (int i = 0; i < normalized.length(); i++) {
+        char c = normalized.charAt(i);
+        if (Character.isWhitespace(c)) {
+            if (formatted.length() > 0 && formatted.charAt(formatted.length() - 1) != ' ') {
+                formatted.append(' ');
+            }
+            capitalizeNext = true;
+        } else if (Character.isLetter(c)) {
+            if (capitalizeNext) {
+                formatted.append(Character.toUpperCase(c));
+                capitalizeNext = false;
+            } else {
+                formatted.append(Character.toLowerCase(c));
+            }
+        } else {
+            formatted.append(c);
+            capitalizeNext = false;
+        }
+    }
+
+    String result = formatted.toString().trim();
+    if (result.length() <= maxChars) {
+        return result;
+    }
+    return result.substring(0, maxChars - 3) + "...";
+}
+
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         

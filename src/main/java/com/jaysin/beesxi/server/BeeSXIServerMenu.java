@@ -188,6 +188,10 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.data.get(1) == 1;
     }
 
+    public boolean isMachineStoppedForInventoryFull() {
+        return this.data.get(28) == 1;
+    }
+
     public int getCpuCount() {
         return this.data.get(2);
     }

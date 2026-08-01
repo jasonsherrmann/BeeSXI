@@ -2,12 +2,11 @@
 Needed for MVP
 ========================
 
-Add recipes (lots of iron, existing casings from forestry, circut boards and electron tubes, sea lanterns)
-clean up analyze tab, virtual hive tab
+
+clean up analyze tab,
 Make machine stop if inventories are full
-Balance the production values
-Make sure production percentages are accurate
-Make a debug item that unlocks all species
+
+
 make sure Controller,export bus drop items when destroyed
 QA check analyzer (shouldnt analyze already analyzed bees)
 get rid of or move shadow bee on analyser when a bee is in the slot
@@ -22,15 +21,17 @@ scanning bees adds flower types (sould be fixed, need to test)
 reduce whitelist size (done needs new art)
 
 
+
+gourd flowers Broken there is no melon_stem or pumpkin_stem item
 ======================
 Broken
 ======================
 
 BeeSXI Controller should say something else once the multiblock is built
     Virtual Hives tab
-        CPU# should just be the number and be on the other side of the chooser
+       
         Chooser should probably not be just pushing next until you find the right one
-        Shift click chooser to add 5/10 etc
+        
         Shouldnt show barrier hoverover
         Cant disable a slot once enabled
         dont show the next page button if less than one page worth of hives
