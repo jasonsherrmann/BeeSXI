@@ -7,8 +7,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -45,6 +47,17 @@ public class BeeSXIWeatherReporterBlock extends Block implements EntityBlock {
             reporter.processScheduledTick(level, pos, state, TICK_INTERVAL);
         }
         level.scheduleTick(pos, this, TICK_INTERVAL);
+    }
+
+    @Override
+    public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
+        if (!level.isClientSide && !player.isCreative()) {
+            popResource(level, pos, new ItemStack(this));
+            if (level.getBlockEntity(pos) instanceof BeeSXIWeatherReporterBlockEntity reporter) {
+                Containers.dropContents(level, pos, reporter);
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Nonnull

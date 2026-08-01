@@ -43,7 +43,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.tags.TagKey;
 import net.minecraft.core.registries.Registries;
-
+import net.minecraft.world.level.block.entity.BlockEntity;
 import com.jaysin.beesxi.BeeSXI;
 import com.jaysin.beesxi.blocks.BeeSXIControllerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
@@ -68,7 +68,7 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
-public class BeeSXIControllerBlockEntity extends net.minecraft.world.level.block.entity.BlockEntity implements Container, net.minecraft.world.MenuProvider {
+public class BeeSXIControllerBlockEntity extends BlockEntity implements Container, net.minecraft.world.MenuProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static void debugLog(String message, Object... args) {

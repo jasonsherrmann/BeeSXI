@@ -5,8 +5,10 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -42,6 +44,17 @@ public class BeeSXIExportBusBlock extends BeeSXIPartBlock implements EntityBlock
                 exportBus.serverTick(tickLevel, tickPos, tickState);
             }
         };
+    }
+
+    @Override
+    public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
+        if (!level.isClientSide && !player.isCreative()) {
+            popResource(level, pos, new ItemStack(this));
+            if (level.getBlockEntity(pos) instanceof BeeSXIExportBusBlockEntity exportBus) {
+                Containers.dropContents(level, pos, exportBus);
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Nonnull

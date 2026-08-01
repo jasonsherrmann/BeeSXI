@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -94,6 +95,9 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
         if (!level.isClientSide && !player.isCreative()) {
             popResource(level, pos, new ItemStack(this));
+            if (level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
+                Containers.dropContents(level, pos, controller);
+            }
             BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);
