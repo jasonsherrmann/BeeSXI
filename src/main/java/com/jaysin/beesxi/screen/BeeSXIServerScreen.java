@@ -1,7 +1,9 @@
 package com.jaysin.beesxi.screen;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
@@ -23,6 +25,7 @@ import forestry.core.utils.SpeciesUtil;
 
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
     private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu_new.png");
+    private static final Map<ResourceLocation, ItemStack> FLOWER_ICON_OVERRIDES = createFlowerIconOverrides();
 
     private static final int VISIBLE_LINES = 7;
     private static final int LINE_HEIGHT = 18;
@@ -358,24 +361,36 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             renderSpeciesRowIcons(guiGraphics, species, y, mouseX, mouseY);
         }
     }
+    private static Map<ResourceLocation, ItemStack> createFlowerIconOverrides() {
+        Map<ResourceLocation, ItemStack> overrides = new LinkedHashMap<>();
+        overrides.put(ResourceLocation.fromNamespaceAndPath("minecraft", "pumpkin_stem"), new ItemStack(Items.PUMPKIN));
+        overrides.put(ResourceLocation.fromNamespaceAndPath("minecraft", "melon_stem"), new ItemStack(Items.MELON));
+        return overrides;
+    }
+
     private void renderFlowerIcon(GuiGraphics guiGraphics, ResourceLocation flowerId, int rowY, int mouseX, int mouseY) {
-    ItemStack flowerStack = ItemStack.EMPTY;
+        ItemStack flowerStack = ItemStack.EMPTY;
 
-    if (flowerId != null) {
-        net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(flowerId);
-        if (item != Items.AIR) {
-            flowerStack = new ItemStack(item);
+        if (flowerId != null) {
+            ItemStack overrideStack = FLOWER_ICON_OVERRIDES.get(flowerId);
+            if (overrideStack != null) {
+                flowerStack = overrideStack.copy();
+            } else {
+                net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(flowerId);
+                if (item != Items.AIR) {
+                    flowerStack = new ItemStack(item);
+                }
+            }
         }
-    }
 
-    if (flowerStack.isEmpty()) {
-        flowerStack = new ItemStack(Items.BARRIER);
-    }
+        if (flowerStack.isEmpty()) {
+            flowerStack = new ItemStack(Items.BARRIER);
+        }
 
-    int x = this.leftPos + 304;
-    guiGraphics.renderItem(flowerStack, x, rowY);
-    captureHoveredStack(flowerStack, x, rowY, mouseX, mouseY);
-}
+        int x = this.leftPos + 304;
+        guiGraphics.renderItem(flowerStack, x, rowY);
+        captureHoveredStack(flowerStack, x, rowY, mouseX, mouseY);
+    }
     private void renderSpeciesRowIcons(GuiGraphics guiGraphics, ResourceLocation speciesId, int rowY, int mouseX, int mouseY) {
         ItemStack beeIcon = ItemStack.EMPTY;
         List<ItemStack> productIcons = new ArrayList<>();
