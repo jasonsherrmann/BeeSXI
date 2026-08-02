@@ -23,11 +23,13 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.item.Rarity;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import com.jaysin.beesxi.BeeSXI;
 import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
+import com.jaysin.beesxi.util.Utils;
 
 public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Container, MenuProvider {
     private static final int SIZE = 2;
@@ -235,8 +237,11 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
         ItemStack output = new ItemStack(Items.PAPER);
         CompoundTag tag = new CompoundTag();
         tag.putString(WEATHER_BIOME_KEY, this.pendingBiome.toString());
+
+        output.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        output.set(DataComponents.RARITY, Rarity.RARE);
         output.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        output.set(DataComponents.CUSTOM_NAME, Component.literal("Weather Report: " + this.pendingBiome.getPath()));
+        output.set(DataComponents.CUSTOM_NAME, Component.literal("Weather Report: " + Utils.trim(this.pendingBiome.getPath(), 24)));
         this.items.set(OUTPUT_SLOT, output);
 
         resetProcess();

@@ -3,26 +3,21 @@ Needed for MVP
 ========================
 
 
-clean up analyze tab,
-Make machine stop if inventories are full
 
 
-make sure Controller,export bus drop items when destroyed
+
 QA check analyzer (shouldnt analyze already analyzed bees)
-get rid of or move shadow bee on analyser when a bee is in the slot
-Fix analyzer wording, should be something like Component dependencyItemName = Component.translatable("item.othermod.some_item");
-Shouldnt be able to hopper into or out of HDD
+
+
+
 Have bees in vHive tab be analysed
 pull bee into controller inventory while analyzing
-remove stacking in analyze inventory
 change stack size on analyzer,weatherreporter, 
-Controller now gets the biome its in for free
-scanning bees adds flower types (sould be fixed, need to test)
-reduce whitelist size (done needs new art)
 
 
 
-gourd flowers Broken there is no melon_stem or pumpkin_stem item
+
+
 ======================
 Broken
 ======================
@@ -37,9 +32,8 @@ BeeSXI Controller should say something else once the multiblock is built
         dont show the next page button if less than one page worth of hives
         Doesn't show drops after 3
 
-Unlocked species should be the icon probably, with hover over for activity type etc
-Inventory tab still wonky
-I get lag and glitches when placing some of the casings, check if the multiblock logic is running too often
+
+
 Add EcksOdinson to list of Special Thanks for help with Export Bus
 
 

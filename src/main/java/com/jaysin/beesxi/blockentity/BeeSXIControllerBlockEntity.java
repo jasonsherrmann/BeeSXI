@@ -36,6 +36,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -1359,6 +1360,10 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
         customTag.put(PAPER_FLOWERS_KEY, flowerList);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(customTag));
+        stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        stack.set(DataComponents.RARITY, Rarity.RARE);
+        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Export Report"));
+
         LOGGER.info("Analyzer exported species card: controller={}, speciesCount={}", this.worldPosition, this.analyzedSpecies.size());
         return true;
     }

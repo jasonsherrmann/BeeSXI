@@ -16,7 +16,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
+import com.jaysin.beesxi.blockentity.BeeSXIHddBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
+import com.jaysin.beesxi.util.Utils;
 
 import forestry.api.apiculture.genetics.BeeLifeStage;
 import forestry.api.apiculture.genetics.IBeeSpecies;
@@ -248,6 +250,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         }
 
         guiGraphics.drawString(this.font, "Insert bee, flower, or weather report in analyze slot", this.leftPos + 108, this.topPos + 84, 0x000000, false);
+        guiGraphics.drawString(this.font, "Input paper and press the analyze button to export", this.leftPos + 108, this.topPos + 94, 0x000000, false);
         guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 114, 0x000000, false);
         guiGraphics.drawString(this.font, "Flowers unlocked: " + this.menu.getUnlockedFlowerIds().size(), this.leftPos + 108, this.topPos + 124, 0x000000, false);
         guiGraphics.drawString(this.font, "Biomes unlocked: " + this.menu.getUnlockedBiomeIds().size(), this.leftPos + 108, this.topPos + 134, 0x000000, false);
@@ -299,7 +302,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
                 captureHoveredStack(beeIcon, this.leftPos + 108, rowY, mouseX, mouseY);
             }
 
-            String traitLine = trim(speciesId.toString(), 22) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + trim(activity, 12);
+            String traitLine = Utils.trim(speciesId.toString(), 22) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + Utils.trim(activity, 12);
             guiGraphics.drawString(this.font, traitLine, this.leftPos + 128, rowY + 4, 0x000000, false);
         }
     }
@@ -320,7 +323,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             if (index >= ids.size()) {
                 break;
             }
-            guiGraphics.drawString(this.font, trim(ids.get(index).toString(), 38), this.leftPos + 108, this.topPos + 52 + i * 10, 0x000000, false);
+            guiGraphics.drawString(this.font, Utils.trim(ids.get(index).toString(), 38), this.leftPos + 108, this.topPos + 52 + i * 10, 0x000000, false);
         }
     }
 
@@ -352,7 +355,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             int y = this.topPos + ROW_BASE_Y + row * LINE_HEIGHT;
 
             guiGraphics.fill(this.leftPos + 76, y, this.leftPos + 398, y + 16, rowBackground);
-            guiGraphics.drawString(this.font, biome == null ? "none" : trim(biome.getPath(), 14), this.leftPos + 204, y + 4, 0x6EA8FF, false);
+            guiGraphics.drawString(this.font, biome == null ? "none" : Utils.trim(biome.getPath(), 14), this.leftPos + 204, y + 4, 0x6EA8FF, false);
             renderFlowerIcon(guiGraphics, flower, y, mouseX, mouseY);
             //guiGraphics.drawString(this.font, flower == null ? "f:*" : "f:" + trim(flower.getPath(), 8), this.leftPos + 292, y + 4, 0xB7A46B, false);
             //guiGraphics.drawString(this.font, "S" + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 340, y + 4, 0xA7E8B6, false);
@@ -457,7 +460,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             return;
         }
 
-        //guiGraphics.drawString(this.font, "HDD Network Inventory", this.leftPos + 108, this.topPos + 24, 0xA0E0A0, false);
+       
         guiGraphics.drawString(this.font, "Each page shows one HDD", this.leftPos + 108, this.topPos + 98, 0x000000, false);
         int page = this.menu.getInventoryPage() + 1;
         int maxPage = this.menu.getInventoryMaxPage() + 1;
@@ -468,6 +471,9 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             ? "HDD Position: (none)"
             : "HDD Position: (" + hddPos.getX() + "," + hddPos.getY() + "," + hddPos.getZ() + ")";
         guiGraphics.drawString(this.font, hddPosText, this.leftPos + 108, this.topPos + 108, 0x000000, false);
+        int usedBytes = this.menu.getHddBytesUsed(0);
+        int totalBytes = this.menu.getHddBytesTotal(0);
+        guiGraphics.drawString(this.font, usedBytes + " / " + totalBytes + " bytes used", this.leftPos + 108, this.topPos + 118, 0x000000, false);
     }
 
     private void renderInventoryCountOverlays(GuiGraphics guiGraphics) {
@@ -575,42 +581,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             this.hoveredStack = stack;
         }
     }
-
-private static String trim(String value, int maxChars) {
-    if (value == null || value.isBlank()) {
-        return "";
-    }
-
-    String normalized = value.replace('_', ' ').replace('-', ' ');
-    StringBuilder formatted = new StringBuilder();
-    boolean capitalizeNext = true;
-
-    for (int i = 0; i < normalized.length(); i++) {
-        char c = normalized.charAt(i);
-        if (Character.isWhitespace(c)) {
-            if (formatted.length() > 0 && formatted.charAt(formatted.length() - 1) != ' ') {
-                formatted.append(' ');
-            }
-            capitalizeNext = true;
-        } else if (Character.isLetter(c)) {
-            if (capitalizeNext) {
-                formatted.append(Character.toUpperCase(c));
-                capitalizeNext = false;
-            } else {
-                formatted.append(Character.toLowerCase(c));
-            }
-        } else {
-            formatted.append(c);
-            capitalizeNext = false;
-        }
-    }
-
-    String result = formatted.toString().trim();
-    if (result.length() <= maxChars) {
-        return result;
-    }
-    return result.substring(0, maxChars - 3) + "...";
-}
 
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
