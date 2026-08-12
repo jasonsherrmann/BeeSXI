@@ -169,84 +169,131 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private boolean structureDirty = true;
     private boolean machineStoppedForInventoryFull;
 
+    /**
+     * Named indices for the {@link ContainerData} fields shared with the UI.
+     * Keeping these in one place makes it easy to see what each slot means and
+     * avoids magic numbers scattered across the switch statements below.
+     */
+    private static final class UiDataIndex {
+        static final int FORMED                        =  0;
+        static final int HAS_ANALYZER                 =  1;
+        static final int CPU_COUNT                    =  2;
+        static final int RAM_COUNT                    =  3;
+        static final int ACTIVE_TAB                   =  4;
+        static final int ANALYZED_SPECIES_COUNT       =  5;
+        static final int INVENTORY_PAGE               =  6;
+        static final int INVENTORY_MAX_PAGE           =  7;
+        static final int ANALYZING                    =  8;
+        static final int ANALYZE_PROGRESS             =  9;
+        static final int POWER_STORED                 = 10;
+        static final int POWER_CAPACITY               = 11;
+        static final int TOTAL_RF_PER_TICK            = 12;
+        static final int INSTANCE_RF_PER_TICK         = 13;
+        static final int ANALYZE_RF_PER_TICK          = 14;
+        static final int DIM_X                        = 15;
+        static final int DIM_Y                        = 16;
+        static final int DIM_Z                        = 17;
+        static final int UI_CONTROLLER_COUNT          = 18;
+        static final int UI_CASING_COUNT              = 19;
+        static final int UI_CPU_COUNT                 = 20;
+        static final int UI_RAM_COUNT                 = 21;
+        static final int UI_HDD_COUNT                 = 22;
+        static final int UI_ANALYZER_COUNT            = 23;
+        static final int UI_POWER_SUPPLY_COUNT        = 24;
+        static final int UI_BATTERY_COUNT             = 25;
+        static final int UI_INVALID_COUNT             = 26;
+        static final int UI_EXPORT_BUS_COUNT          = 27;
+        static final int MACHINE_STOPPED_INVENTORY    = 28;
+        static final int COUNT                        = 29;
+
+        private UiDataIndex() {}
+    }
+
     private final ContainerData containerData = new ContainerData() {
         @Override
         public int get(int index) {
-            return switch (index) {
-                case 0 -> BeeSXIControllerBlockEntity.this.formed ? 1 : 0;
-                case 1 -> BeeSXIControllerBlockEntity.this.hasAnalyzer ? 1 : 0;
-                case 2 -> BeeSXIControllerBlockEntity.this.cpuCount;
-                case 3 -> BeeSXIControllerBlockEntity.this.ramCount;
-                case 4 -> BeeSXIControllerBlockEntity.this.activeTab;
-                case 5 -> BeeSXIControllerBlockEntity.this.analyzedSpecies.size();
-                case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage;
-                case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage;
-                case 8 -> BeeSXIControllerBlockEntity.this.analyzing ? 1 : 0;
-                case 9 -> BeeSXIControllerBlockEntity.this.uiAnalyzeProgress;
-                case 10 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiPowerStored);
-                case 11 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiPowerCapacity);
-                case 12 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiTotalRfPerTick);
-                case 13 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiInstanceRfPerTick);
-                case 14 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiAnalyzeRfPerTick);
-                case 15 -> BeeSXIControllerBlockEntity.this.uiDimX;
-                case 16 -> BeeSXIControllerBlockEntity.this.uiDimY;
-                case 17 -> BeeSXIControllerBlockEntity.this.uiDimZ;
-                case 18 -> BeeSXIControllerBlockEntity.this.uiControllerCount;
-                case 19 -> BeeSXIControllerBlockEntity.this.uiCasingCount;
-                case 20 -> BeeSXIControllerBlockEntity.this.uiCpuCount;
-                case 21 -> BeeSXIControllerBlockEntity.this.uiRamCount;
-                case 22 -> BeeSXIControllerBlockEntity.this.uiHddCount;
-                case 23 -> BeeSXIControllerBlockEntity.this.uiAnalyzerCount;
-                case 24 -> BeeSXIControllerBlockEntity.this.uiPowerSupplyCount;
-                case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount;
-                case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount;
-                case 27 -> BeeSXIControllerBlockEntity.this.uiExportBusCount;
-                case 28 -> BeeSXIControllerBlockEntity.this.machineStoppedForInventoryFull ? 1 : 0;
-                default -> 0;
-            };
+            return getContainerDataValue(index);
         }
 
         @Override
         public void set(int index, int value) {
-            switch (index) {
-                case 0 -> BeeSXIControllerBlockEntity.this.formed = value != 0;
-                case 1 -> BeeSXIControllerBlockEntity.this.hasAnalyzer = value != 0;
-                case 2 -> BeeSXIControllerBlockEntity.this.cpuCount = value;
-                case 3 -> BeeSXIControllerBlockEntity.this.ramCount = value;
-                case 4 -> BeeSXIControllerBlockEntity.this.activeTab = value;
-                case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage = Math.max(0, value);
-                case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage = Math.max(0, value);
-                case 8 -> BeeSXIControllerBlockEntity.this.analyzing = value != 0;
-                case 9 -> BeeSXIControllerBlockEntity.this.uiAnalyzeProgress = value;
-                case 10 -> BeeSXIControllerBlockEntity.this.uiPowerStored = Math.max(0, value);
-                case 11 -> BeeSXIControllerBlockEntity.this.uiPowerCapacity = Math.max(0, value);
-                case 12 -> BeeSXIControllerBlockEntity.this.uiTotalRfPerTick = Math.max(0, value);
-                case 13 -> BeeSXIControllerBlockEntity.this.uiInstanceRfPerTick = Math.max(0, value);
-                case 14 -> BeeSXIControllerBlockEntity.this.uiAnalyzeRfPerTick = Math.max(0, value);
-                case 15 -> BeeSXIControllerBlockEntity.this.uiDimX = Math.max(0, value);
-                case 16 -> BeeSXIControllerBlockEntity.this.uiDimY = Math.max(0, value);
-                case 17 -> BeeSXIControllerBlockEntity.this.uiDimZ = Math.max(0, value);
-                case 18 -> BeeSXIControllerBlockEntity.this.uiControllerCount = Math.max(0, value);
-                case 19 -> BeeSXIControllerBlockEntity.this.uiCasingCount = Math.max(0, value);
-                case 20 -> BeeSXIControllerBlockEntity.this.uiCpuCount = Math.max(0, value);
-                case 21 -> BeeSXIControllerBlockEntity.this.uiRamCount = Math.max(0, value);
-                case 22 -> BeeSXIControllerBlockEntity.this.uiHddCount = Math.max(0, value);
-                case 23 -> BeeSXIControllerBlockEntity.this.uiAnalyzerCount = Math.max(0, value);
-                case 24 -> BeeSXIControllerBlockEntity.this.uiPowerSupplyCount = Math.max(0, value);
-                case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount = Math.max(0, value);
-                case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount = Math.max(0, value);
-                case 27 -> BeeSXIControllerBlockEntity.this.uiExportBusCount = Math.max(0, value);
-                case 28 -> BeeSXIControllerBlockEntity.this.machineStoppedForInventoryFull = value != 0;
-                default -> {
-                }
-            }
+            setContainerDataValue(index, value);
         }
 
         @Override
         public int getCount() {
-            return 29;
+            return UiDataIndex.COUNT;
         }
     };
+
+    private int getContainerDataValue(int index) {
+        return switch (index) {
+            case UiDataIndex.FORMED                     -> this.formed ? 1 : 0;
+            case UiDataIndex.HAS_ANALYZER               -> this.hasAnalyzer ? 1 : 0;
+            case UiDataIndex.CPU_COUNT                  -> this.cpuCount;
+            case UiDataIndex.RAM_COUNT                  -> this.ramCount;
+            case UiDataIndex.ACTIVE_TAB                 -> this.activeTab;
+            case UiDataIndex.ANALYZED_SPECIES_COUNT     -> this.analyzedSpecies.size();
+            case UiDataIndex.INVENTORY_PAGE             -> this.inventoryPage;
+            case UiDataIndex.INVENTORY_MAX_PAGE         -> this.inventoryMaxPage;
+            case UiDataIndex.ANALYZING                  -> this.analyzing ? 1 : 0;
+            case UiDataIndex.ANALYZE_PROGRESS           -> this.uiAnalyzeProgress;
+            case UiDataIndex.POWER_STORED               -> (int) Math.min(Integer.MAX_VALUE, this.uiPowerStored);
+            case UiDataIndex.POWER_CAPACITY             -> (int) Math.min(Integer.MAX_VALUE, this.uiPowerCapacity);
+            case UiDataIndex.TOTAL_RF_PER_TICK          -> (int) Math.min(Integer.MAX_VALUE, this.uiTotalRfPerTick);
+            case UiDataIndex.INSTANCE_RF_PER_TICK       -> (int) Math.min(Integer.MAX_VALUE, this.uiInstanceRfPerTick);
+            case UiDataIndex.ANALYZE_RF_PER_TICK        -> (int) Math.min(Integer.MAX_VALUE, this.uiAnalyzeRfPerTick);
+            case UiDataIndex.DIM_X                      -> this.uiDimX;
+            case UiDataIndex.DIM_Y                      -> this.uiDimY;
+            case UiDataIndex.DIM_Z                      -> this.uiDimZ;
+            case UiDataIndex.UI_CONTROLLER_COUNT        -> this.uiControllerCount;
+            case UiDataIndex.UI_CASING_COUNT            -> this.uiCasingCount;
+            case UiDataIndex.UI_CPU_COUNT               -> this.uiCpuCount;
+            case UiDataIndex.UI_RAM_COUNT               -> this.uiRamCount;
+            case UiDataIndex.UI_HDD_COUNT               -> this.uiHddCount;
+            case UiDataIndex.UI_ANALYZER_COUNT          -> this.uiAnalyzerCount;
+            case UiDataIndex.UI_POWER_SUPPLY_COUNT      -> this.uiPowerSupplyCount;
+            case UiDataIndex.UI_BATTERY_COUNT           -> this.uiBatteryCount;
+            case UiDataIndex.UI_INVALID_COUNT           -> this.uiInvalidCount;
+            case UiDataIndex.UI_EXPORT_BUS_COUNT        -> this.uiExportBusCount;
+            case UiDataIndex.MACHINE_STOPPED_INVENTORY  -> this.machineStoppedForInventoryFull ? 1 : 0;
+            default -> 0;
+        };
+    }
+
+    private void setContainerDataValue(int index, int value) {
+        switch (index) {
+            case UiDataIndex.FORMED                    -> this.formed = value != 0;
+            case UiDataIndex.HAS_ANALYZER              -> this.hasAnalyzer = value != 0;
+            case UiDataIndex.CPU_COUNT                 -> this.cpuCount = value;
+            case UiDataIndex.RAM_COUNT                 -> this.ramCount = value;
+            case UiDataIndex.ACTIVE_TAB                -> this.activeTab = value;
+            case UiDataIndex.INVENTORY_PAGE            -> this.inventoryPage = Math.max(0, value);
+            case UiDataIndex.INVENTORY_MAX_PAGE        -> this.inventoryMaxPage = Math.max(0, value);
+            case UiDataIndex.ANALYZING                 -> this.analyzing = value != 0;
+            case UiDataIndex.ANALYZE_PROGRESS          -> this.uiAnalyzeProgress = value;
+            case UiDataIndex.POWER_STORED              -> this.uiPowerStored = Math.max(0, value);
+            case UiDataIndex.POWER_CAPACITY            -> this.uiPowerCapacity = Math.max(0, value);
+            case UiDataIndex.TOTAL_RF_PER_TICK         -> this.uiTotalRfPerTick = Math.max(0, value);
+            case UiDataIndex.INSTANCE_RF_PER_TICK      -> this.uiInstanceRfPerTick = Math.max(0, value);
+            case UiDataIndex.ANALYZE_RF_PER_TICK       -> this.uiAnalyzeRfPerTick = Math.max(0, value);
+            case UiDataIndex.DIM_X                     -> this.uiDimX = Math.max(0, value);
+            case UiDataIndex.DIM_Y                     -> this.uiDimY = Math.max(0, value);
+            case UiDataIndex.DIM_Z                     -> this.uiDimZ = Math.max(0, value);
+            case UiDataIndex.UI_CONTROLLER_COUNT       -> this.uiControllerCount = Math.max(0, value);
+            case UiDataIndex.UI_CASING_COUNT           -> this.uiCasingCount = Math.max(0, value);
+            case UiDataIndex.UI_CPU_COUNT              -> this.uiCpuCount = Math.max(0, value);
+            case UiDataIndex.UI_RAM_COUNT              -> this.uiRamCount = Math.max(0, value);
+            case UiDataIndex.UI_HDD_COUNT              -> this.uiHddCount = Math.max(0, value);
+            case UiDataIndex.UI_ANALYZER_COUNT         -> this.uiAnalyzerCount = Math.max(0, value);
+            case UiDataIndex.UI_POWER_SUPPLY_COUNT     -> this.uiPowerSupplyCount = Math.max(0, value);
+            case UiDataIndex.UI_BATTERY_COUNT          -> this.uiBatteryCount = Math.max(0, value);
+            case UiDataIndex.UI_INVALID_COUNT          -> this.uiInvalidCount = Math.max(0, value);
+            case UiDataIndex.UI_EXPORT_BUS_COUNT       -> this.uiExportBusCount = Math.max(0, value);
+            case UiDataIndex.MACHINE_STOPPED_INVENTORY -> this.machineStoppedForInventoryFull = value != 0;
+            default -> { /* read-only or unknown index – ignore */ }
+        }
+    }
 
     public BeeSXIControllerBlockEntity(BlockPos pos, BlockState state) {
         super(BeeSXI.BEESXI_CONTROLLER_BLOCK_ENTITY.get(), pos, state);
@@ -267,13 +314,18 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
 
         BlockState state = blockItem.getBlock().defaultBlockState();
-        boolean isForestryFlower = state.is(FORESTRY_FLOWERS_ROOT_TAG)
-            || state.getTags().anyMatch(tag -> tag.location().getNamespace().equals("forestry") && tag.location().getPath().startsWith("flowers/"));
-        if (!isForestryFlower) {
+        if (!isForestryFlowerBlock(state)) {
             return null;
         }
 
         return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(blockItem.getBlock());
+    }
+
+    /** Returns {@code true} when {@code state} belongs to the Forestry flowers tag hierarchy. */
+    private boolean isForestryFlowerBlock(BlockState state) {
+        return state.is(FORESTRY_FLOWERS_ROOT_TAG)
+            || state.getTags().anyMatch(tag -> tag.location().getNamespace().equals("forestry")
+                && tag.location().getPath().startsWith("flowers/"));
     }
 
     private ResourceLocation getCurrentBiomeId() {
@@ -1917,13 +1969,18 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return getAnalyzeProgressPercent();
     }
 
+    /** Returns {@code true} when {@code slot} is within both the page-size limit and the HDD's own container size. */
+    private boolean isValidNetworkSlot(BeeSXIHddBlockEntity hdd, int slot) {
+        return slot >= 0 && slot < NETWORK_SLOT_PAGE_SIZE && slot < hdd.getContainerSize();
+    }
+
     public ItemStack getHddNetworkItem(int slot) {
         return getHddNetworkItem(getInventoryPage(), slot);
     }
 
     public ItemStack getHddNetworkItem(int page, int slot) {
         BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
+        if (hdd == null || !isValidNetworkSlot(hdd, slot)) {
             return ItemStack.EMPTY;
         }
         return hdd.getItem(slot);
@@ -1935,7 +1992,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     public ItemStack extractHddNetworkItem(int page, int slot, int amount) {
         BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
+        if (hdd == null || !isValidNetworkSlot(hdd, slot)) {
             return ItemStack.EMPTY;
         }
         ItemStack removed = hdd.extractStack(slot, amount);
@@ -1956,15 +2013,10 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             if (remaining <= 0) {
                 break;
             }
-            if (!(this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd)) {
-                continue;
-            }
-
-            ItemStack fromDrive = hdd.extractByItemId(itemId, remaining);
+            ItemStack fromDrive = extractFromSingleHdd(hddPos, itemId, remaining);
             if (fromDrive.isEmpty()) {
                 continue;
             }
-
             if (extracted.isEmpty()) {
                 extracted = fromDrive;
             } else {
@@ -1977,6 +2029,14 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             sync();
         }
         return extracted;
+    }
+
+    /** Extracts up to {@code amount} of {@code itemId} from the HDD at {@code hddPos}, or returns {@link ItemStack#EMPTY}. */
+    private ItemStack extractFromSingleHdd(BlockPos hddPos, ResourceLocation itemId, int amount) {
+        if (!(this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd)) {
+            return ItemStack.EMPTY;
+        }
+        return hdd.extractByItemId(itemId, amount);
     }
 
     public int getHddBytesUsed(int slot) {
@@ -2037,7 +2097,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     public void setHddNetworkItem(int page, int slot, ItemStack stack) {
         BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
+        if (hdd == null || !isValidNetworkSlot(hdd, slot)) {
             return;
         }
         hdd.setItem(slot, stack);
@@ -2046,7 +2106,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     public boolean hasHddNetworkSlot(int slot) {
         BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
-        return hdd != null && slot >= 0 && slot < NETWORK_SLOT_PAGE_SIZE && slot < hdd.getContainerSize();
+        return hdd != null && isValidNetworkSlot(hdd, slot);
     }
 
     private BeeSXIHddBlockEntity getHddForPage(int page) {
@@ -2160,45 +2220,32 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
         tag.put("VirtualHives", hives);
 
-        ListTag hdds = new ListTag();
-        for (BlockPos hddPos : this.hddPositions) {
-            CompoundTag posTag = new CompoundTag();
-            posTag.putInt("X", hddPos.getX());
-            posTag.putInt("Y", hddPos.getY());
-            posTag.putInt("Z", hddPos.getZ());
-            hdds.add(posTag);
-        }
-        tag.put("HddPositions", hdds);
+        tag.put("HddPositions", saveBlockPosList(this.hddPositions));
+        tag.put("PowerSupplyPositions", saveBlockPosList(this.powerSupplyPositions));
+        tag.put("BatteryPositions", saveBlockPosList(this.batteryPositions));
+        tag.put("ExportBusPositions", saveBlockPosList(this.exportBusPositions));
+    }
 
-        ListTag powerBlocks = new ListTag();
-        for (BlockPos powerPos : this.powerSupplyPositions) {
+    /** Serialises a list of {@link BlockPos} values to a {@link ListTag} of compound tags with {@code X/Y/Z} entries. */
+    private static ListTag saveBlockPosList(List<BlockPos> positions) {
+        ListTag list = new ListTag();
+        for (BlockPos pos : positions) {
             CompoundTag posTag = new CompoundTag();
-            posTag.putInt("X", powerPos.getX());
-            posTag.putInt("Y", powerPos.getY());
-            posTag.putInt("Z", powerPos.getZ());
-            powerBlocks.add(posTag);
+            posTag.putInt("X", pos.getX());
+            posTag.putInt("Y", pos.getY());
+            posTag.putInt("Z", pos.getZ());
+            list.add(posTag);
         }
-        tag.put("PowerSupplyPositions", powerBlocks);
+        return list;
+    }
 
-        ListTag batteries = new ListTag();
-        for (BlockPos powerPos : this.batteryPositions) {
-            CompoundTag posTag = new CompoundTag();
-            posTag.putInt("X", powerPos.getX());
-            posTag.putInt("Y", powerPos.getY());
-            posTag.putInt("Z", powerPos.getZ());
-            batteries.add(posTag);
+    /** Reads a {@link ListTag} written by {@link #saveBlockPosList} back into {@code target}. */
+    private static void loadBlockPosList(ListTag listTag, List<BlockPos> target) {
+        target.clear();
+        for (int i = 0; i < listTag.size(); i++) {
+            CompoundTag posTag = listTag.getCompound(i);
+            target.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
         }
-        tag.put("BatteryPositions", batteries);
-
-        ListTag exportBuses = new ListTag();
-        for (BlockPos exportBusPos : this.exportBusPositions) {
-            CompoundTag posTag = new CompoundTag();
-            posTag.putInt("X", exportBusPos.getX());
-            posTag.putInt("Y", exportBusPos.getY());
-            posTag.putInt("Z", exportBusPos.getZ());
-            exportBuses.add(posTag);
-        }
-        tag.put("ExportBusPositions", exportBuses);
     }
 
     @Override
@@ -2312,33 +2359,10 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             this.virtualHives.add(new VirtualHiveConfig(speciesId, biomeId, flowerId, instances));
         }
 
-        this.hddPositions.clear();
-        ListTag hdds = tag.getList("HddPositions", Tag.TAG_COMPOUND);
-        for (int i = 0; i < hdds.size(); i++) {
-            CompoundTag posTag = hdds.getCompound(i);
-            this.hddPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
-        }
-
-        this.powerSupplyPositions.clear();
-        ListTag powerBlocks = tag.getList("PowerSupplyPositions", Tag.TAG_COMPOUND);
-        for (int i = 0; i < powerBlocks.size(); i++) {
-            CompoundTag posTag = powerBlocks.getCompound(i);
-            this.powerSupplyPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
-        }
-
-        this.batteryPositions.clear();
-        ListTag batteries = tag.getList("BatteryPositions", Tag.TAG_COMPOUND);
-        for (int i = 0; i < batteries.size(); i++) {
-            CompoundTag posTag = batteries.getCompound(i);
-            this.batteryPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
-        }
-
-        this.exportBusPositions.clear();
-        ListTag exportBuses = tag.getList("ExportBusPositions", Tag.TAG_COMPOUND);
-        for (int i = 0; i < exportBuses.size(); i++) {
-            CompoundTag posTag = exportBuses.getCompound(i);
-            this.exportBusPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
-        }
+        loadBlockPosList(tag.getList("HddPositions", Tag.TAG_COMPOUND), this.hddPositions);
+        loadBlockPosList(tag.getList("PowerSupplyPositions", Tag.TAG_COMPOUND), this.powerSupplyPositions);
+        loadBlockPosList(tag.getList("BatteryPositions", Tag.TAG_COMPOUND), this.batteryPositions);
+        loadBlockPosList(tag.getList("ExportBusPositions", Tag.TAG_COMPOUND), this.exportBusPositions);
 
         this.assembledPositions.clear();
         resizeVirtualHives();
