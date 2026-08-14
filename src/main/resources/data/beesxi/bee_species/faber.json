@@ -1,0 +1,38 @@
+{
+    "authority": "Spencers_finest",
+    "genus": "cogitatio",
+    "species": "faber",
+    "dominant": true,
+    "outline": 1251615,
+    "body": 6846816,
+    "stripes": 5592405,
+    "temperature": "normal",
+    "humidity": "arid",
+    "products": [
+        {
+            "item": "minecraft:diamond",
+            "chance": 0.1
+        }
+    ],
+    "specialties": [
+        {
+            "item": "minecraft:emerald",
+            "chance": 0.1
+        }
+    ],
+    "genome": {
+        "forestry:speed": {"value": 0.8},
+        "forestry:lifespan": {"value": 40},
+        "forestry:fertility": {"value": 2},
+        "forestry:activity": {"value": "forestry:activity_diurnal"},
+        "forestry:bee_effect": {"value": "beesxi:bee_effect_caustic"},
+        "forestry:temperature_tolerance": {"dominant": true,"value": "BOTH_1"},
+        "forestry:humidity_tolerance": {"dominant": true,"value": "BOTH_1"}
+
+
+
+    }
+
+    
+}
+

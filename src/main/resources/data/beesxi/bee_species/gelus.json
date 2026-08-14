@@ -1,0 +1,40 @@
+{
+    "authority": "Spencers_finest",
+    "genus": "cogitatio",
+    "species": "gelus",
+    "dominant": true,
+    "outline": 61183,
+    "body": 3377366,
+    "stripes": 5592405,
+    "temperature": "cold",
+    "humidity": "arid",
+    "products": [
+        {
+            "item": "minecraft:diamond",
+            "chance": 0.1
+        }
+    ],
+    "specialties": [
+        {
+            "item": "minecraft:emerald",
+            "chance": 0.1
+        }
+    ],
+    "genome": {
+        "forestry:speed": {"value": 0.8},
+        "forestry:lifespan": {"value": 40},
+        "forestry:fertility": {"value": 2},
+        "forestry:activity": {"value": "forestry:activity_diurnal"},
+        "forestry:bee_effect": {"value": "forestry:bee_effect_glacial"},
+        "forestry:temperature_tolerance": {"dominant": true,"value": "BOTH_1"},
+        "forestry:humidity_tolerance": {"dominant": true,"value": "BOTH_1"},
+        "forestry:flower_type": {"value": "forestry:flower_type_snow"
+    }
+
+
+
+    }
+
+    
+}
+

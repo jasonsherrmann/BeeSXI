@@ -23,7 +23,7 @@ import com.jaysin.beesxi.util.Utils;
 import forestry.api.apiculture.genetics.BeeLifeStage;
 import forestry.api.apiculture.genetics.IBeeSpecies;
 import forestry.api.core.IProduct;
-import forestry.core.utils.SpeciesUtil;
+import forestry.core.platform.util.SpeciesUtil;
 
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
     private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu_new.png");

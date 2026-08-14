@@ -1,0 +1,31 @@
+{
+  "type": "forestry:transform_block",
+  "attempts": 2,
+  "chance": 1.0,
+  "dominant": false,
+  "requires_working": true,
+  "throttle": 200,
+  "transforms": [
+     {
+      "from": "#minecraft:dirt",
+      "requires_air_above": true,
+      "to": {
+        "Name": "minecraft:sand"
+      }
+    },
+     {
+      "from": "#minecraft:stone",
+      "requires_air_above": true,
+      "to": {
+        "Name": "minecraft:gravel"
+      }
+    },
+     {
+      "from": "minecraft:cobblestone",
+      "requires_air_above": true,
+      "to": {
+        "Name": "minecraft:gravel"
+      }
+    }
+  ]
+}

@@ -114,8 +114,14 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
 public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag tooltipFlag) {
     if (Screen.hasShiftDown()) {
         // Text shown ONLY when holding SHIFT
-        tooltipComponents.add(Component.literal("§eDetailed information goes here!"));
-        tooltipComponents.add(Component.literal("§7More stats, lore, or instructions."));
+        tooltipComponents.add(Component.literal("§ePart of the BeeSXI system."));
+        tooltipComponents.add(Component.literal("§7Parts Required:"));
+        tooltipComponents.add(Component.literal("§71x Controller, 1x Power Supply,"));
+        tooltipComponents.add(Component.literal("§71x Molectular Aanalyzer,"));
+        tooltipComponents.add(Component.literal("§71x RAM, 1x HDD, 1x CPU,"));
+        tooltipComponents.add(Component.literal("§7All edges must be Casings"));
+        tooltipComponents.add(Component.literal("§73-15 blocks each side"));
+
     } else {
         // Text shown by default
         tooltipComponents.add(Component.literal("§7Hold §eSHIFT§7 for details."));

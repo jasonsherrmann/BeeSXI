@@ -24,7 +24,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
@@ -167,8 +166,7 @@ public class BeeSXI {
         modEventBus.addListener(this::registerCapabilities);
     }
 
-    private void commonSetup(@Nonnull FMLCommonSetupEvent event) {
-    }
+    private void commonSetup(@Nonnull FMLCommonSetupEvent event) {  }
 
     private void registerCapabilities(@Nonnull RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(
