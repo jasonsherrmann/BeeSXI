@@ -1553,6 +1553,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             }
         }
 
+        ItemStack originalRemaining = remaining.copy();
         for (int i = 1; i < this.items.size() && !remaining.isEmpty(); i++) {
             ItemStack existing = this.items.get(i);
             if (existing.isEmpty()) {
@@ -1567,7 +1568,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 }
             }
         }
-        if (!remaining.isEmpty()) {
+        if (remaining.getCount() != originalRemaining.getCount()) {
             setChanged();
         }
 
@@ -1921,10 +1922,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public ItemStack getHddNetworkItem(int slot) {
-        return getHddNetworkItem(0, slot);
-    }
-
-    public ItemStack getHddNetworkItem(int page, int slot) {
         if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
             return ItemStack.EMPTY;
         }
@@ -1932,10 +1929,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
-        return extractHddNetworkItem(0, slot, amount);
-    }
-
-    public ItemStack extractHddNetworkItem(int page, int slot, int amount) {
         if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
             return ItemStack.EMPTY;
         }
@@ -1985,15 +1978,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return 0;
     }
 
-    public int getHddBytesUsed(int page, int slot) {
-        return 0;
-    }
-
     public int getHddBytesTotal(int slot) {
-        return 0;
-    }
-
-    public int getHddBytesTotal(int page, int slot) {
         return 0;
     }
 
@@ -2001,15 +1986,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return 0;
     }
 
-    public int getHddTypesUsed(int page, int slot) {
-        return 0;
-    }
-
     public int getHddTypesMax(int slot) {
-        return 0;
-    }
-
-    public int getHddTypesMax(int page, int slot) {
         return 0;
     }
 
@@ -2018,10 +1995,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public void setHddNetworkItem(int slot, ItemStack stack) {
-        setHddNetworkItem(0, slot, stack);
-    }
-
-    public void setHddNetworkItem(int page, int slot, ItemStack stack) {
         if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
             return;
         }
