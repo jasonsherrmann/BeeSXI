@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -16,7 +15,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
-import com.jaysin.beesxi.blockentity.BeeSXIHddBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 import com.jaysin.beesxi.util.Utils;
 
@@ -106,9 +104,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         this.prevPageButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> {
             if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
                 linePage = Math.max(0, linePage - 1);
-            } else if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
-                this.menu.beginInventoryPageChange(this.menu.getInventoryPage() - 1);
-                pressMenuButton(9100);
             }
         })
             .bounds(x + 332, y + 20, 14, 20)
@@ -116,9 +111,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         this.nextPageButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> {
             if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_VIRTUAL_HIVES) {
                 linePage++;
-            } else if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
-                this.menu.beginInventoryPageChange(this.menu.getInventoryPage() + 1);
-                pressMenuButton(9101);
             }
         })
             .bounds(x + 346, y + 20, 14, 20)
@@ -455,32 +447,10 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderInventoryTab(GuiGraphics guiGraphics) {
-        if (this.menu.isInventoryPageChangePending() && !this.menu.isInventoryPageReady()) {
-            guiGraphics.drawString(this.font, "Loading...", this.leftPos + 108, this.topPos + 98, 0x000000, false);
-            return;
-        }
-
-       
-        guiGraphics.drawString(this.font, "Each page shows one HDD", this.leftPos + 108, this.topPos + 98, 0x000000, false);
-        int page = this.menu.getInventoryPage() + 1;
-        int maxPage = this.menu.getInventoryMaxPage() + 1;
-        guiGraphics.drawString(this.font, "Page " + page + " / " + maxPage, this.leftPos + 250, this.topPos + 25, 0x000000, false);
-
-        BlockPos hddPos = this.menu.getInventoryPageHddPos();
-        String hddPosText = hddPos == null
-            ? "HDD Position: (none)"
-            : "HDD Position: (" + hddPos.getX() + "," + hddPos.getY() + "," + hddPos.getZ() + ")";
-        guiGraphics.drawString(this.font, hddPosText, this.leftPos + 108, this.topPos + 108, 0x000000, false);
-        int usedBytes = this.menu.getHddBytesUsed(0);
-        int totalBytes = this.menu.getHddBytesTotal(0);
-        guiGraphics.drawString(this.font, usedBytes + " / " + totalBytes + " bytes used", this.leftPos + 108, this.topPos + 118, 0x000000, false);
+        guiGraphics.drawString(this.font, "Controller Inventory", this.leftPos + 108, this.topPos + 28, 0x000000, false);
     }
 
     private void renderInventoryCountOverlays(GuiGraphics guiGraphics) {
-        if (this.menu.isInventoryPageChangePending() && !this.menu.isInventoryPageReady()) {
-            return;
-        }
-
         BeeSXIServerMenu serverMenu = (BeeSXIServerMenu) this.menu;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
@@ -535,14 +505,12 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             || tab == BeeSXIControllerBlockEntity.TAB_BIOMES;
 
         if (this.prevPageButton != null) {
-            boolean inventoryActive = tab == BeeSXIControllerBlockEntity.TAB_INVENTORY;
-            this.prevPageButton.visible = virtualActive || inventoryActive;
-            this.prevPageButton.active = virtualActive ? this.linePage > 0 : this.menu.getInventoryPage() > 0;
+            this.prevPageButton.visible = virtualActive;
+            this.prevPageButton.active = virtualActive && this.linePage > 0;
         }
         if (this.nextPageButton != null) {
-            boolean inventoryActive = tab == BeeSXIControllerBlockEntity.TAB_INVENTORY;
-            this.nextPageButton.visible = virtualActive || inventoryActive;
-            this.nextPageButton.active = virtualActive ? true : this.menu.getInventoryPage() < this.menu.getInventoryMaxPage();
+            this.nextPageButton.visible = virtualActive;
+            this.nextPageButton.active = virtualActive;
         }
         if (this.analyzeSlotButton != null) {
             this.analyzeSlotButton.visible = analysisActive;

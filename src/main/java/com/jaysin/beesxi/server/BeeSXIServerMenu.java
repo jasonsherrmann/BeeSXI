@@ -10,7 +10,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 
 import com.jaysin.beesxi.BeeSXI;
@@ -27,8 +26,6 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
     private final BeeSXIControllerBlockEntity controller;
     private final ContainerData data;
-    private int pendingInventoryPage = -1;
-    private boolean inventoryPageChangePending;
 
     public BeeSXIServerMenu(int containerId, Inventory playerInventory, BeeSXIControllerBlockEntity controller) {
         super(BeeSXI.BEESXI_SERVER_MENU.get(), containerId);
@@ -54,7 +51,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         int index = 0;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new HddTabSlot(index++, 123 + col * 18, 45 + row * 18));
+                this.addSlot(new TabSlot(this.controller, NETWORK_INV_START + index++, 123 + col * 18, 45 + row * 18, BeeSXIControllerBlockEntity.TAB_INVENTORY));
             }
         }
     }
@@ -140,72 +137,16 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         }
     }
 
-    private final class HddTabSlot extends Slot {
-        private static final int DUMMY_SIZE = NETWORK_SLOT_COUNT;
-        private final int networkIndex;
-
-        private HddTabSlot(int networkIndex, int x, int y) {
-            super(new SimpleContainer(DUMMY_SIZE), networkIndex, x, y);
-            this.networkIndex = networkIndex;
-        }
-
-        @Override
-        public boolean isActive() {
-            return BeeSXIServerMenu.this.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY;
-        }
-
-        @Override
-        public ItemStack getItem() {
-            return BeeSXIServerMenu.this.getHddNetworkItem(this.networkIndex);
-        }
-
-        @Override
-        public boolean hasItem() {
-            return !getItem().isEmpty();
-        }
-
-        @Override
-        public void set(ItemStack stack) {
-            BeeSXIServerMenu.this.setHddNetworkItem(this.networkIndex, stack);
-            this.setChanged();
-        }
-
-        @Override
-        public ItemStack remove(int amount) {
-            return BeeSXIServerMenu.this.extractHddNetworkItem(this.networkIndex, amount);
-        }
-
-        @Override
-        public boolean mayPlace(ItemStack stack) {
-            return false;
-        }
-
-        @Override
-        public boolean mayPickup(Player player) {
-            return isActive();
-        }
-    }
-
     public void beginInventoryPageChange(int requestedPage) {
-        this.pendingInventoryPage = requestedPage;
-        this.inventoryPageChangePending = true;
+        // No-op: inventory is now stored directly on the controller, no pages needed
     }
 
     public boolean isInventoryPageChangePending() {
-        return this.inventoryPageChangePending;
+        return false;
     }
 
     public boolean isInventoryPageReady() {
-        if (!this.inventoryPageChangePending) {
-            return true;
-        }
-        int currentPage = this.data.get(6);
-        if (currentPage == this.pendingInventoryPage) {
-            this.inventoryPageChangePending = false;
-            this.pendingInventoryPage = -1;
-            return true;
-        }
-        return false;
+        return true;
     }
 
     public int getActiveTab() {
@@ -233,16 +174,11 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public int getInventoryPage() {
-        int currentPage = this.data.get(6);
-        if (this.inventoryPageChangePending && currentPage == this.pendingInventoryPage) {
-            this.inventoryPageChangePending = false;
-            this.pendingInventoryPage = -1;
-        }
-        return currentPage;
+        return 0;
     }
 
     public int getInventoryMaxPage() {
-        return this.data.get(7);
+        return 0;
     }
 
     public boolean isAnalyzing() {
@@ -342,57 +278,36 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public ItemStack getHddNetworkItem(int slot) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return ItemStack.EMPTY;
-        }
-        return this.controller.getHddNetworkItem(getInventoryPage(), slot);
+        return this.controller.getHddNetworkItem(slot);
     }
 
     @Nullable
     public BlockPos getInventoryPageHddPos() {
-        return this.controller.getHddPosForPage(getInventoryPage());
+        return null;
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return ItemStack.EMPTY;
-        }
-        return this.controller.extractHddNetworkItem(getInventoryPage(), slot, amount);
+        return this.controller.extractHddNetworkItem(slot, amount);
     }
 
     public void setHddNetworkItem(int slot, ItemStack stack) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return;
-        }
-        this.controller.setHddNetworkItem(getInventoryPage(), slot, stack);
+        this.controller.setHddNetworkItem(slot, stack);
     }
 
     public int getHddBytesUsed(int slot) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return 0;
-        }
-        return this.controller.getHddBytesUsed(getInventoryPage(), slot);
+        return 0;
     }
 
     public int getHddBytesTotal(int slot) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return 0;
-        }
-        return this.controller.getHddBytesTotal(getInventoryPage(), slot);
+        return 0;
     }
 
     public int getHddTypesUsed(int slot) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return 0;
-        }
-        return this.controller.getHddTypesUsed(getInventoryPage(), slot);
+        return 0;
     }
 
     public int getHddTypesMax(int slot) {
-        if (this.inventoryPageChangePending && !isInventoryPageReady()) {
-            return 0;
-        }
-        return this.controller.getHddTypesMax(getInventoryPage(), slot);
+        return 0;
     }
 
 
