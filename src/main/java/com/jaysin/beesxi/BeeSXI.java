@@ -28,12 +28,10 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIExportBusBlockEntity;
-import com.jaysin.beesxi.blockentity.BeeSXIHddBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIPowerSupplyBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIWeatherReporterBlockEntity;
 import com.jaysin.beesxi.blocks.BeeSXIControllerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIExportBusBlock;
-import com.jaysin.beesxi.blocks.BeeSXIHddBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPowerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIWeatherReporterBlock;
@@ -64,12 +62,6 @@ public class BeeSXI {
         () -> new BeeSXIPartBlock(BeeSXIPartType.CPU, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
     public static final DeferredBlock<Block> BEESXI_RAM = BLOCKS.register("beesxi_ram",
         () -> new BeeSXIPartBlock(BeeSXIPartType.RAM, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
-    public static final DeferredBlock<Block> BEESXI_HDD = BLOCKS.register("beesxi_hdd",
-        () -> new BeeSXIHddBlock(BlockBehaviour.Properties.of()
-        .mapColor(MapColor.METAL)
-        .strength(3.0F, 3600000.0F)
-        .lightLevel(state -> state.getValue(BeeSXIHddBlock.ASSEMBLED) ? 9 : 0)
-        .isValidSpawn((state, getter, pos, entityType) -> false)));
     public static final DeferredBlock<Block> BEESXI_CASING = BLOCKS.register("beesxi_casing",
         () -> new BeeSXIPartBlock(BeeSXIPartType.CASING, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.5F, 8.0F)));
     public static final DeferredBlock<Block> MOLECULAR_ANALYZER = BLOCKS.register("molecular_analyzer",
@@ -86,10 +78,6 @@ public class BeeSXI {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIControllerBlockEntity>> BEESXI_CONTROLLER_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("beesxi_controller",
             () -> BlockEntityType.Builder.of(BeeSXIControllerBlockEntity::new, BEESXI_CONTROLLER.get()).build(null));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIHddBlockEntity>> BEESXI_HDD_BLOCK_ENTITY =
-        BLOCK_ENTITIES.register("beesxi_hdd",
-            () -> BlockEntityType.Builder.of(BeeSXIHddBlockEntity::new, BEESXI_HDD.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIPowerSupplyBlockEntity>> BEESXI_POWER_SUPPLY_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("beesxi_power_supply",
@@ -112,7 +100,6 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> BEESXI_CONTROLLER_ITEM = ITEMS.register("beesxi_controller", () -> new BlockItem(BEESXI_CONTROLLER.get(), new Item.Properties().rarity(Rarity.EPIC)));
     public static final DeferredHolder<Item, Item> BEESXI_CPU_ITEM = ITEMS.register("beesxi_cpu", () -> new BlockItem(BEESXI_CPU.get(), new Item.Properties().rarity(Rarity.RARE)));
     public static final DeferredHolder<Item, Item> BEESXI_RAM_ITEM = ITEMS.register("beesxi_ram", () -> new BlockItem(BEESXI_RAM.get(), new Item.Properties().rarity(Rarity.RARE)));
-    public static final DeferredHolder<Item, Item> BEESXI_HDD_ITEM = ITEMS.register("beesxi_hdd", () -> new BlockItem(BEESXI_HDD.get(), new Item.Properties().rarity(Rarity.RARE)));
     public static final DeferredHolder<Item, Item> BEESXI_CASING_ITEM = ITEMS.register("beesxi_casing", () -> new BlockItem(BEESXI_CASING.get(), new Item.Properties().rarity(Rarity.UNCOMMON)));
     public static final DeferredHolder<Item, Item> MOLECULAR_ANALYZER_ITEM = ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties().rarity(Rarity.RARE)));
     public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties().rarity(Rarity.RARE)));
@@ -121,14 +108,15 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> BEESXI_WEATHER_REPORTER_ITEM = ITEMS.register("beesxi_weather_reporter", () -> new BlockItem(BEESXI_WEATHER_REPORTER.get(), new Item.Properties().rarity(Rarity.UNCOMMON)));
     public static final DeferredHolder<Item, Item> CAPACITOR_EMPTY = ITEMS.register("capacitor_empty", () -> new Item(new Item.Properties()));
     public static final DeferredHolder<Item, Item> SILICON_WAFER = ITEMS.register("silicon_wafer", () -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)));
-    public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled",
-        () -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)){
-            @Override
+    public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled",() -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)){
+        @Override
             public boolean isFoil(ItemStack stack) {
                 return true;
             }
         });
-    
+    public static final DeferredHolder<Item, Item> MEMORY_CRYSTAL = ITEMS.register("memory_crystal", () -> new Item(new Item.Properties()));
+    public static final DeferredHolder<Item, Item> GLASS_FIBER = ITEMS.register("glass_fiber", () -> new Item(new Item.Properties()));
+    public static final DeferredHolder<Item, Item> CASING_PART = ITEMS.register("casing_part", () -> new Item(new Item.Properties())); //casingpart name is temporary, will be changed to something else later
 
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BEESXI_CREATIVE_TAB = CREATIVE_MODE_TABS.register("beesxi",
@@ -139,7 +127,6 @@ public class BeeSXI {
                 output.accept(BEESXI_CONTROLLER_ITEM.get());
                 output.accept(BEESXI_CPU_ITEM.get());
                 output.accept(BEESXI_RAM_ITEM.get());
-                output.accept(BEESXI_HDD_ITEM.get());
                 output.accept(BEESXI_CASING_ITEM.get());
                 output.accept(MOLECULAR_ANALYZER_ITEM.get());
                 output.accept(BEESXI_POWER_SUPPLY_ITEM.get());
@@ -149,6 +136,9 @@ public class BeeSXI {
                 output.accept(CAPACITOR_EMPTY.get());
                 output.accept(CAPACITOR_FILLED.get());
                 output.accept(SILICON_WAFER.get());
+                output.accept(MEMORY_CRYSTAL.get());
+                output.accept(GLASS_FIBER.get());
+                output.accept(CASING_PART.get());
                  
             })
             .build());

@@ -160,9 +160,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         this.hoveredStack = ItemStack.EMPTY;
         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
-        if (this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY) {
-            renderInventoryCountOverlays(guiGraphics);
-        }
         if (!this.hoveredStack.isEmpty()) {
             guiGraphics.renderTooltip(this.font, this.hoveredStack, mouseX, mouseY);
         }
@@ -224,7 +221,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         guiGraphics.drawString(this.font, "CPU: " + this.menu.getStructureCpuCount(), this.leftPos + 108, y, 0x000000, false);
         guiGraphics.drawString(this.font, "RAM: " + this.menu.getStructureRamCount(), this.leftPos + 230, y, 0x000000, false);
         y += 12;
-        guiGraphics.drawString(this.font, "HDD: " + this.menu.getStructureHddCount(), this.leftPos + 108, y, 0x000000, false);
         guiGraphics.drawString(this.font, "Analyzer: " + this.menu.getStructureAnalyzerCount(), this.leftPos + 230, y, 0x000000, false);
         y += 12;
         guiGraphics.drawString(this.font, "Power Supply: " + this.menu.getStructurePowerSupplyCount(), this.leftPos + 108, y, 0x000000, false);
@@ -450,25 +446,6 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         guiGraphics.drawString(this.font, "Controller Inventory", this.leftPos + 108, this.topPos + 28, 0x000000, false);
     }
 
-    private void renderInventoryCountOverlays(GuiGraphics guiGraphics) {
-        BeeSXIServerMenu serverMenu = (BeeSXIServerMenu) this.menu;
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 9; col++) {
-                int slotIndex = row * 9 + col;
-                ItemStack stack = serverMenu.getHddNetworkItem(slotIndex);
-                if (stack.isEmpty() || stack.getCount() <= 1) {
-                    continue;
-                }
-
-                int x = this.leftPos + 123 + col * 18;
-                int y = this.topPos + 45 + row * 18;
-                String countText = Integer.toString(stack.getCount());
-                int textX = x + 18 - this.font.width(countText);
-                int textY = y + 9;
-                guiGraphics.drawString(this.font, countText, textX, textY, 0x000000, false);
-            }
-        }
-    }
 
     private void updateWidgetVisibility() {
         int tab = this.menu.getActiveTab();

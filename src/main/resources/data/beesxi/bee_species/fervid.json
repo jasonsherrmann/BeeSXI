@@ -16,7 +16,7 @@
     ],
     "specialties": [
         {
-            "item": "minecraft:emerald",
+            "item": "beesxi:glass_fiber",
             "chance": 0.1
         }
     ],

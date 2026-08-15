@@ -17,7 +17,7 @@
     ],
     "specialties": [
         {
-            "item": "minecraft:emerald",
+            "item": "beesxi:memory_crystal",
             "chance": 0.1
         }
     ],

@@ -1,0 +1,8 @@
+{
+  "type": "forestry:bee_mutation",
+  "chance": 0.08,
+  "first": "forestry:seething",
+  "id": "beesxi:bee_mutation/fervid_1",
+  "result": "beesxi:fervid",
+  "second": "beesxi:faber"
+}

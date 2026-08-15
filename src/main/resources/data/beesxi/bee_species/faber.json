@@ -16,7 +16,7 @@
     ],
     "specialties": [
         {
-            "item": "minecraft:emerald",
+            "item": "beesxi:casing_part",
             "chance": 0.1
         }
     ],

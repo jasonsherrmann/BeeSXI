@@ -137,18 +137,6 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         }
     }
 
-    public void beginInventoryPageChange(int requestedPage) {
-        // No-op: inventory is now stored directly on the controller, no pages needed
-    }
-
-    public boolean isInventoryPageChangePending() {
-        return false;
-    }
-
-    public boolean isInventoryPageReady() {
-        return true;
-    }
-
     public int getActiveTab() {
         return this.data.get(4);
     }
@@ -171,14 +159,6 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
 
     public boolean isFormed() {
         return this.data.get(0) == 1;
-    }
-
-    public int getInventoryPage() {
-        return 0;
-    }
-
-    public int getInventoryMaxPage() {
-        return 0;
     }
 
     public boolean isAnalyzing() {
@@ -237,10 +217,6 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.data.get(21);
     }
 
-    public int getStructureHddCount() {
-        return this.data.get(22);
-    }
-
     public int getStructureAnalyzerCount() {
         return this.data.get(23);
     }
@@ -276,40 +252,6 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     public java.util.List<BeeSXIControllerBlockEntity.VirtualHiveConfig> getVirtualHives() {
         return this.controller.getVirtualHives();
     }
-
-    public ItemStack getHddNetworkItem(int slot) {
-        return this.controller.getHddNetworkItem(slot);
-    }
-
-    @Nullable
-    public BlockPos getInventoryPageHddPos() {
-        return null;
-    }
-
-    public ItemStack extractHddNetworkItem(int slot, int amount) {
-        return this.controller.extractHddNetworkItem(slot, amount);
-    }
-
-    public void setHddNetworkItem(int slot, ItemStack stack) {
-        this.controller.setHddNetworkItem(slot, stack);
-    }
-
-    public int getHddBytesUsed(int slot) {
-        return 0;
-    }
-
-    public int getHddBytesTotal(int slot) {
-        return 0;
-    }
-
-    public int getHddTypesUsed(int slot) {
-        return 0;
-    }
-
-    public int getHddTypesMax(int slot) {
-        return 0;
-    }
-
 
     @Nullable
     public ResourceLocation getSpeciesForLine(int line) {

@@ -39,7 +39,7 @@ public class BeeSXIPartBlock extends Block {
 
     @Override
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
-        if (!level.isClientSide && !player.isCreative() && !(this instanceof BeeSXIHddBlock)) {
+        if (!level.isClientSide && !player.isCreative()) {
             popResource(level, pos, new ItemStack(this));
             BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }

@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -88,7 +89,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     public static final int INVENTORY_SLOT_COUNT = 27;
     private static final int SIZE = 1 + INVENTORY_SLOT_COUNT;
-    private static final int NETWORK_SLOT_PAGE_SIZE = INVENTORY_SLOT_COUNT;
     private static final int MIN_MULTIBLOCK_DIM = 3;
     private static final int MAX_MULTIBLOCK_DIM = 15;
     private static final int VALIDATION_INTERVAL = 20;
@@ -120,7 +120,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private final Set<ResourceLocation> unlockedBiomes = new HashSet<>();
     private final Set<ResourceLocation> unlockedFlowers = new HashSet<>();
     private final List<VirtualHiveConfig> virtualHives = new ArrayList<>();
-    private final List<BlockPos> hddPositions = new ArrayList<>();
     private final List<BlockPos> powerSupplyPositions = new ArrayList<>();
     private final List<BlockPos> batteryPositions = new ArrayList<>();
     private final List<BlockPos> exportBusPositions = new ArrayList<>();
@@ -131,8 +130,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private int cpuCount;
     private int ramCount;
     private int activeTab = TAB_VIRTUAL_HIVES;
-    private int inventoryPage;
-    private int inventoryMaxPage;
     private boolean analyzing;
     private int analyzeTicksRemaining;
     private long analyzeEnergyRemaining;
@@ -159,7 +156,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private int uiCasingCount;
     private int uiCpuCount;
     private int uiRamCount;
-    private int uiHddCount;
     private int uiAnalyzerCount;
     private int uiPowerSupplyCount;
     private int uiBatteryCount;
@@ -180,8 +176,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 case 3 -> BeeSXIControllerBlockEntity.this.ramCount;
                 case 4 -> BeeSXIControllerBlockEntity.this.activeTab;
                 case 5 -> BeeSXIControllerBlockEntity.this.analyzedSpecies.size();
-                case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage;
-                case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage;
                 case 8 -> BeeSXIControllerBlockEntity.this.analyzing ? 1 : 0;
                 case 9 -> BeeSXIControllerBlockEntity.this.uiAnalyzeProgress;
                 case 10 -> (int) Math.min(Integer.MAX_VALUE, BeeSXIControllerBlockEntity.this.uiPowerStored);
@@ -196,8 +190,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 case 19 -> BeeSXIControllerBlockEntity.this.uiCasingCount;
                 case 20 -> BeeSXIControllerBlockEntity.this.uiCpuCount;
                 case 21 -> BeeSXIControllerBlockEntity.this.uiRamCount;
-                case 22 -> BeeSXIControllerBlockEntity.this.uiHddCount;
-                case 23 -> BeeSXIControllerBlockEntity.this.uiAnalyzerCount;
+                case 22 -> BeeSXIControllerBlockEntity.this.uiAnalyzerCount;
                 case 24 -> BeeSXIControllerBlockEntity.this.uiPowerSupplyCount;
                 case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount;
                 case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount;
@@ -215,8 +208,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 case 2 -> BeeSXIControllerBlockEntity.this.cpuCount = value;
                 case 3 -> BeeSXIControllerBlockEntity.this.ramCount = value;
                 case 4 -> BeeSXIControllerBlockEntity.this.activeTab = value;
-                case 6 -> BeeSXIControllerBlockEntity.this.inventoryPage = Math.max(0, value);
-                case 7 -> BeeSXIControllerBlockEntity.this.inventoryMaxPage = Math.max(0, value);
                 case 8 -> BeeSXIControllerBlockEntity.this.analyzing = value != 0;
                 case 9 -> BeeSXIControllerBlockEntity.this.uiAnalyzeProgress = value;
                 case 10 -> BeeSXIControllerBlockEntity.this.uiPowerStored = Math.max(0, value);
@@ -231,8 +222,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 case 19 -> BeeSXIControllerBlockEntity.this.uiCasingCount = Math.max(0, value);
                 case 20 -> BeeSXIControllerBlockEntity.this.uiCpuCount = Math.max(0, value);
                 case 21 -> BeeSXIControllerBlockEntity.this.uiRamCount = Math.max(0, value);
-                case 22 -> BeeSXIControllerBlockEntity.this.uiHddCount = Math.max(0, value);
-                case 23 -> BeeSXIControllerBlockEntity.this.uiAnalyzerCount = Math.max(0, value);
+                case 22 -> BeeSXIControllerBlockEntity.this.uiAnalyzerCount = Math.max(0, value);
                 case 24 -> BeeSXIControllerBlockEntity.this.uiPowerSupplyCount = Math.max(0, value);
                 case 25 -> BeeSXIControllerBlockEntity.this.uiBatteryCount = Math.max(0, value);
                 case 26 -> BeeSXIControllerBlockEntity.this.uiInvalidCount = Math.max(0, value);
@@ -681,7 +671,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         this.uiCasingCount = diagnostics.casingCount;
         this.uiCpuCount = diagnostics.cpuCount;
         this.uiRamCount = diagnostics.ramCount;
-        this.uiHddCount = diagnostics.hddCount;
         this.uiAnalyzerCount = diagnostics.analyzerCount;
         this.uiPowerSupplyCount = diagnostics.powerSupplyCount;
         this.uiBatteryCount = diagnostics.batteryCount;
@@ -700,18 +689,12 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         this.ramCount = result.rams;
         this.hasAnalyzer = result.hasAnalyzer;
 
-        this.hddPositions.clear();
-        this.hddPositions.addAll(result.hddPositions);
         this.powerSupplyPositions.clear();
         this.powerSupplyPositions.addAll(result.powerSupplyPositions);
         this.batteryPositions.clear();
         this.batteryPositions.addAll(result.batteryPositions);
         this.exportBusPositions.clear();
         this.exportBusPositions.addAll(result.exportBusPositions);
-        this.inventoryMaxPage = getMaxInventoryPage();
-        if (this.inventoryPage > this.inventoryMaxPage) {
-            this.inventoryPage = this.inventoryMaxPage;
-        }
 
         // Keep prior virtual hive configuration when the structure is temporarily broken.
         // Re-size only while formed so species/instance choices survive rebuilds.
@@ -728,7 +711,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private StructureDiagnostics collectStructureDiagnostics(Level level) {
         Set<BlockPos> component = collectConnectedStructureComponent(level);
         if (component.isEmpty()) {
-            return new StructureDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), List.of("No connected multiblock blocks found"));
+            return new StructureDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), List.of("No connected multiblock blocks found"));
         }
 
         BlockPos min = null;
@@ -751,7 +734,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             || sizeZ < MIN_MULTIBLOCK_DIM || sizeZ > MAX_MULTIBLOCK_DIM) {
             List<String> issues = new ArrayList<>();
             issues.add("Dimensions out of bounds: " + sizeX + "x" + sizeY + "x" + sizeZ + " (allowed " + MIN_MULTIBLOCK_DIM + "-" + MAX_MULTIBLOCK_DIM + ")");
-            return new StructureDiagnostics(sizeX, sizeY, sizeZ, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), issues);
+            return new StructureDiagnostics(sizeX, sizeY, sizeZ, 0, 0, 0, 0, 0, 0, 0, 0, 0, StructureValidationResult.invalid(), issues);
         }
 
         return validateWithDiagnostics(level, min, sizeX, sizeY, sizeZ);
@@ -765,12 +748,10 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         int casings = 0;
         int powerSupplies = 0;
         int batteries = 0;
-        int hdds = 0;
         int exportBuses = 0;
         int invalidBlocks = 0;
 
         List<String> issues = new ArrayList<>();
-        List<BlockPos> foundHdds = new ArrayList<>();
         List<BlockPos> foundPowerSupplies = new ArrayList<>();
         List<BlockPos> foundBatteries = new ArrayList<>();
         List<BlockPos> foundExportBuses = new ArrayList<>();
@@ -812,10 +793,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                     switch (partType) {
                         case CPU -> cpus++;
                         case RAM -> rams++;
-                        case HDD -> {
-                            hdds++;
-                            foundHdds.add(scanPos.immutable());
-                        }
                         case POWER_SUPPLY -> {
                             powerSupplies++;
                             foundPowerSupplies.add(scanPos.immutable());
@@ -859,7 +836,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
         boolean valid = issues.stream().noneMatch(issue -> !issue.startsWith("No BATTERY detected"));
         StructureValidationResult result = valid
-            ? new StructureValidationResult(true, cpus, rams, analyzers > 0, foundHdds, foundPowerSupplies, foundBatteries, foundExportBuses, structurePositions)
+            ? new StructureValidationResult(true, cpus, rams, analyzers > 0, foundPowerSupplies, foundBatteries, foundExportBuses, structurePositions)
             : StructureValidationResult.invalid();
 
         return new StructureDiagnostics(
@@ -870,7 +847,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             casings,
             cpus,
             rams,
-            hdds,
             analyzers,
             powerSupplies,
             batteries,
@@ -890,7 +866,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 + " casing=" + diagnostics.casingCount
                 + " cpu=" + diagnostics.cpuCount
                 + " ram=" + diagnostics.ramCount
-                + " hdd=" + diagnostics.hddCount
                 + " analyzer=" + diagnostics.analyzerCount
                 + " power_supply=" + diagnostics.powerSupplyCount
                 + " battery=" + diagnostics.batteryCount
@@ -1048,27 +1023,12 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
         if (id >= 0 && id <= TAB_BIOMES) {
             this.activeTab = id;
-            if (id == TAB_INVENTORY) {
-                this.inventoryPage = 0;
-            }
             sync();
             return true;
         }
 
         if (id == 9000) {
             startAnalyzeOne();
-            return true;
-        }
-
-        if (id == 9100) {
-            this.inventoryPage = Math.max(0, this.inventoryPage - 1);
-            sync();
-            return true;
-        }
-
-        if (id == 9101) {
-            this.inventoryPage = Math.min(getMaxInventoryPage(), this.inventoryPage + 1);
-            sync();
             return true;
         }
 
@@ -1806,26 +1766,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return this.containerData;
     }
 
-    public int getHddNetworkSlotCount() {
-        return NETWORK_SLOT_PAGE_SIZE;
-    }
-
-    public int getHddPageCount() {
-        return 1;
-    }
-
-    public BlockPos getHddPosForPage(int page) {
-        return null;
-    }
-
-    public int getInventoryPage() {
-        return 0;
-    }
-
-    public int getMaxInventoryPage() {
-        return 0;
-    }
-
     public int getStructureDimX() {
         return this.uiDimX;
     }
@@ -1852,10 +1792,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     public int getStructureRamCount() {
         return this.uiRamCount;
-    }
-
-    public int getStructureHddCount() {
-        return this.uiHddCount;
     }
 
     public int getStructureAnalyzerCount() {
@@ -1921,91 +1857,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return getAnalyzeProgressPercent();
     }
 
-    public ItemStack getHddNetworkItem(int slot) {
-        if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
-            return ItemStack.EMPTY;
-        }
-        return this.items.get(1 + slot);
-    }
-
-    public ItemStack extractHddNetworkItem(int slot, int amount) {
-        if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack removed = ContainerHelper.removeItem(this.items, 1 + slot, amount);
-        if (!removed.isEmpty()) {
-            sync();
-        }
-        return removed;
-    }
-
-    public ItemStack extractStoredItem(ResourceLocation itemId, int amount) {
-        if (itemId == null || amount <= 0) {
-            return ItemStack.EMPTY;
-        }
-
-        ItemStack extracted = ItemStack.EMPTY;
-        int remaining = amount;
-        for (int i = 1; i < this.items.size() && remaining > 0; i++) {
-            ItemStack stack = this.items.get(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            ResourceLocation stackId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
-            if (!itemId.equals(stackId)) {
-                continue;
-            }
-            int toTake = Math.min(remaining, stack.getCount());
-            if (extracted.isEmpty()) {
-                extracted = stack.copyWithCount(toTake);
-            } else {
-                extracted.grow(toTake);
-            }
-            stack.shrink(toTake);
-            if (stack.isEmpty()) {
-                this.items.set(i, ItemStack.EMPTY);
-            }
-            remaining -= toTake;
-        }
-
-        if (!extracted.isEmpty()) {
-            sync();
-        }
-        return extracted;
-    }
-
-    public int getHddBytesUsed(int slot) {
-        return 0;
-    }
-
-    public int getHddBytesTotal(int slot) {
-        return 0;
-    }
-
-    public int getHddTypesUsed(int slot) {
-        return 0;
-    }
-
-    public int getHddTypesMax(int slot) {
-        return 0;
-    }
-
-    public ItemStack removeHddNetworkItem(int slot, int amount) {
-        return extractHddNetworkItem(slot, amount);
-    }
-
-    public void setHddNetworkItem(int slot, ItemStack stack) {
-        if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
-            return;
-        }
-        this.items.set(1 + slot, stack);
-        sync();
-    }
-
-    public boolean hasHddNetworkSlot(int slot) {
-        return slot >= 0 && slot < NETWORK_SLOT_PAGE_SIZE;
-    }
-
     @Override
     public net.minecraft.network.chat.Component getDisplayName() {
         return net.minecraft.network.chat.Component.translatable("block.beesxi.beesxi_controller");
@@ -2026,7 +1877,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         tag.putInt("CpuCount", this.cpuCount);
         tag.putInt("RamCount", this.ramCount);
         tag.putInt("ActiveTab", this.activeTab);
-        tag.putInt("InventoryPage", this.inventoryPage);
         tag.putBoolean("Analyzing", this.analyzing);
         tag.putInt("AnalyzeTicksRemaining", this.analyzeTicksRemaining);
         tag.putLong("AnalyzeEnergyRemaining", this.analyzeEnergyRemaining);
@@ -2053,7 +1903,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         tag.putInt("UiCasingCount", this.uiCasingCount);
         tag.putInt("UiCpuCount", this.uiCpuCount);
         tag.putInt("UiRamCount", this.uiRamCount);
-        tag.putInt("UiHddCount", this.uiHddCount);
         tag.putInt("UiAnalyzerCount", this.uiAnalyzerCount);
         tag.putInt("UiPowerSupplyCount", this.uiPowerSupplyCount);
         tag.putInt("UiBatteryCount", this.uiBatteryCount);
@@ -2101,16 +1950,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
         tag.put("VirtualHives", hives);
 
-        ListTag hdds = new ListTag();
-        for (BlockPos hddPos : this.hddPositions) {
-            CompoundTag posTag = new CompoundTag();
-            posTag.putInt("X", hddPos.getX());
-            posTag.putInt("Y", hddPos.getY());
-            posTag.putInt("Z", hddPos.getZ());
-            hdds.add(posTag);
-        }
-        tag.put("HddPositions", hdds);
-
         ListTag powerBlocks = new ListTag();
         for (BlockPos powerPos : this.powerSupplyPositions) {
             CompoundTag posTag = new CompoundTag();
@@ -2154,7 +1993,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         this.cpuCount = tag.getInt("CpuCount");
         this.ramCount = tag.getInt("RamCount");
         this.activeTab = tag.getInt("ActiveTab");
-        this.inventoryPage = Math.max(0, tag.getInt("InventoryPage"));
         this.analyzing = tag.getBoolean("Analyzing");
         this.analyzeTicksRemaining = Math.max(0, tag.getInt("AnalyzeTicksRemaining"));
         this.analyzeEnergyRemaining = tag.contains("AnalyzeEnergyRemaining", Tag.TAG_LONG) ? Math.max(0L, tag.getLong("AnalyzeEnergyRemaining")) : 0L;
@@ -2183,7 +2021,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         this.uiCasingCount = Math.max(0, tag.getInt("UiCasingCount"));
         this.uiCpuCount = Math.max(0, tag.getInt("UiCpuCount"));
         this.uiRamCount = Math.max(0, tag.getInt("UiRamCount"));
-        this.uiHddCount = Math.max(0, tag.getInt("UiHddCount"));
         this.uiAnalyzerCount = Math.max(0, tag.getInt("UiAnalyzerCount"));
         this.uiPowerSupplyCount = Math.max(0, tag.getInt("UiPowerSupplyCount"));
         this.uiBatteryCount = Math.max(0, tag.getInt("UiBatteryCount"));
@@ -2253,13 +2090,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             this.virtualHives.add(new VirtualHiveConfig(speciesId, biomeId, flowerId, instances));
         }
 
-        this.hddPositions.clear();
-        ListTag hdds = tag.getList("HddPositions", Tag.TAG_COMPOUND);
-        for (int i = 0; i < hdds.size(); i++) {
-            CompoundTag posTag = hdds.getCompound(i);
-            this.hddPositions.add(new BlockPos(posTag.getInt("X"), posTag.getInt("Y"), posTag.getInt("Z")));
-        }
-
         this.powerSupplyPositions.clear();
         ListTag powerBlocks = tag.getList("PowerSupplyPositions", Tag.TAG_COMPOUND);
         for (int i = 0; i < powerBlocks.size(); i++) {
@@ -2283,7 +2113,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
         this.assembledPositions.clear();
         resizeVirtualHives();
-        this.inventoryMaxPage = getMaxInventoryPage();
     }
 
     @Override
@@ -2357,6 +2186,47 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         sync();
     }
 
+    public ItemStack extractStoredItem(ResourceLocation itemId, int amount) {
+        if (amount <= 0 || itemId == null) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack extracted = ItemStack.EMPTY;
+        int remaining = amount;
+
+        for (int slot = 1; slot < this.items.size() && remaining > 0; slot++) {
+            ItemStack stack = this.items.get(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            ResourceLocation stackId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            if (stackId == null || !stackId.equals(itemId)) {
+                continue;
+            }
+
+            int take = Math.min(remaining, stack.getCount());
+            ItemStack taken = stack.copyWithCount(take);
+            if (extracted.isEmpty()) {
+                extracted = taken;
+            } else {
+                extracted.grow(take);
+            }
+
+            stack.shrink(take);
+            if (stack.isEmpty()) {
+                this.items.set(slot, ItemStack.EMPTY);
+            }
+            remaining -= take;
+        }
+
+        if (!extracted.isEmpty()) {
+            setChanged();
+            sync();
+        }
+        return extracted;
+    }
+
     public static final class VirtualHiveConfig {
         public ResourceLocation speciesId;
         public ResourceLocation biomeId;
@@ -2376,18 +2246,16 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         final int cpus;
         final int rams;
         final boolean hasAnalyzer;
-        final List<BlockPos> hddPositions;
         final List<BlockPos> powerSupplyPositions;
         final List<BlockPos> batteryPositions;
         final List<BlockPos> exportBusPositions;
         final List<BlockPos> structurePositions;
 
-        private StructureValidationResult(boolean valid, int cpus, int rams, boolean hasAnalyzer, List<BlockPos> hddPositions, List<BlockPos> powerSupplyPositions, List<BlockPos> batteryPositions, List<BlockPos> exportBusPositions, List<BlockPos> structurePositions) {
+        private StructureValidationResult(boolean valid, int cpus, int rams, boolean hasAnalyzer, List<BlockPos> powerSupplyPositions, List<BlockPos> batteryPositions, List<BlockPos> exportBusPositions, List<BlockPos> structurePositions) {
             this.valid = valid;
             this.cpus = cpus;
             this.rams = rams;
             this.hasAnalyzer = hasAnalyzer;
-            this.hddPositions = hddPositions;
             this.powerSupplyPositions = powerSupplyPositions;
             this.batteryPositions = batteryPositions;
             this.exportBusPositions = exportBusPositions;
@@ -2395,7 +2263,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
 
         static StructureValidationResult invalid() {
-            return new StructureValidationResult(false, 0, 0, false, List.of(), List.of(), List.of(), List.of(), List.of());
+            return new StructureValidationResult(false, 0, 0, false, List.of(), List.of(), List.of(), List.of());
         }
     }
 
@@ -2407,7 +2275,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         final int casingCount;
         final int cpuCount;
         final int ramCount;
-        final int hddCount;
         final int analyzerCount;
         final int powerSupplyCount;
         final int batteryCount;
@@ -2416,7 +2283,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         final StructureValidationResult result;
         final List<String> issues;
 
-        private StructureDiagnostics(int dimX, int dimY, int dimZ, int controllerCount, int casingCount, int cpuCount, int ramCount, int hddCount, int analyzerCount, int powerSupplyCount, int batteryCount, int exportBusCount, int invalidCount, StructureValidationResult result, List<String> issues) {
+        private StructureDiagnostics(int dimX, int dimY, int dimZ, int controllerCount, int casingCount, int cpuCount, int ramCount, int analyzerCount, int powerSupplyCount, int batteryCount, int exportBusCount, int invalidCount, StructureValidationResult result, List<String> issues) {
             this.dimX = dimX;
             this.dimY = dimY;
             this.dimZ = dimZ;
@@ -2424,7 +2291,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             this.casingCount = casingCount;
             this.cpuCount = cpuCount;
             this.ramCount = ramCount;
-            this.hddCount = hddCount;
             this.analyzerCount = analyzerCount;
             this.powerSupplyCount = powerSupplyCount;
             this.batteryCount = batteryCount;
