@@ -86,8 +86,9 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     public static final int TAB_FLOWERS = 5;
     public static final int TAB_BIOMES = 6;
 
-    private static final int SIZE = 1;
-    private static final int NETWORK_SLOT_PAGE_SIZE = 27;
+    public static final int INVENTORY_SLOT_COUNT = 27;
+    private static final int SIZE = 1 + INVENTORY_SLOT_COUNT;
+    private static final int NETWORK_SLOT_PAGE_SIZE = INVENTORY_SLOT_COUNT;
     private static final int MIN_MULTIBLOCK_DIM = 3;
     private static final int MAX_MULTIBLOCK_DIM = 15;
     private static final int VALIDATION_INTERVAL = 20;
@@ -597,9 +598,12 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             }
         }
 
-        for (BlockPos hddPos : this.hddPositions) {
-            if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd
-                && hdd.canAcceptStack(single)) {
+        for (int i = 1; i < this.items.size(); i++) {
+            ItemStack existing = this.items.get(i);
+            if (existing.isEmpty()) {
+                return true;
+            }
+            if (ItemStack.isSameItemSameComponents(existing, single) && existing.getCount() < existing.getMaxStackSize()) {
                 return true;
             }
         }
@@ -845,9 +849,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
         if (rams < 1) {
             issues.add("Missing required block type: RAM");
-        }
-        if (hdds < 1) {
-            issues.add("Missing required block type: HDD");
         }
         if (powerSupplies < 1) {
             issues.add("Missing required block type: POWER_SUPPLY");
@@ -1552,13 +1553,23 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             }
         }
 
-        for (BlockPos hddPos : this.hddPositions) {
-            if (remaining.isEmpty()) {
-                break;
+        ItemStack originalRemaining = remaining.copy();
+        for (int i = 1; i < this.items.size() && !remaining.isEmpty(); i++) {
+            ItemStack existing = this.items.get(i);
+            if (existing.isEmpty()) {
+                this.items.set(i, remaining.copy());
+                remaining = ItemStack.EMPTY;
+            } else if (ItemStack.isSameItemSameComponents(existing, remaining)) {
+                int space = existing.getMaxStackSize() - existing.getCount();
+                if (space > 0) {
+                    int transfer = Math.min(space, remaining.getCount());
+                    existing.grow(transfer);
+                    remaining.shrink(transfer);
+                }
             }
-            if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
-                remaining = hdd.insertStack(remaining);
-            }
+        }
+        if (remaining.getCount() != originalRemaining.getCount()) {
+            setChanged();
         }
 
         if (!remaining.isEmpty() && this.level instanceof ServerLevel serverLevel) {
@@ -1796,30 +1807,23 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public int getHddNetworkSlotCount() {
-        return getHddPageCount() * NETWORK_SLOT_PAGE_SIZE;
+        return NETWORK_SLOT_PAGE_SIZE;
     }
 
     public int getHddPageCount() {
-        return this.hddPositions.size();
+        return 1;
     }
 
     public BlockPos getHddPosForPage(int page) {
-        if (page < 0 || page >= this.hddPositions.size()) {
-            return null;
-        }
-        return this.hddPositions.get(page);
+        return null;
     }
 
     public int getInventoryPage() {
-        int max = getMaxInventoryPage();
-        if (this.inventoryPage > max) {
-            this.inventoryPage = max;
-        }
-        return this.inventoryPage;
+        return 0;
     }
 
     public int getMaxInventoryPage() {
-        return Math.max(0, getHddPageCount() - 1);
+        return 0;
     }
 
     public int getStructureDimX() {
@@ -1918,27 +1922,17 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public ItemStack getHddNetworkItem(int slot) {
-        return getHddNetworkItem(getInventoryPage(), slot);
-    }
-
-    public ItemStack getHddNetworkItem(int page, int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
+        if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
             return ItemStack.EMPTY;
         }
-        return hdd.getItem(slot);
+        return this.items.get(1 + slot);
     }
 
     public ItemStack extractHddNetworkItem(int slot, int amount) {
-        return extractHddNetworkItem(getInventoryPage(), slot, amount);
-    }
-
-    public ItemStack extractHddNetworkItem(int page, int slot, int amount) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
+        if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
             return ItemStack.EMPTY;
         }
-        ItemStack removed = hdd.extractStack(slot, amount);
+        ItemStack removed = ContainerHelper.removeItem(this.items, 1 + slot, amount);
         if (!removed.isEmpty()) {
             sync();
         }
@@ -1946,31 +1940,32 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public ItemStack extractStoredItem(ResourceLocation itemId, int amount) {
-        if (itemId == null || amount <= 0 || this.level == null) {
+        if (itemId == null || amount <= 0) {
             return ItemStack.EMPTY;
         }
 
         ItemStack extracted = ItemStack.EMPTY;
         int remaining = amount;
-        for (BlockPos hddPos : this.hddPositions) {
-            if (remaining <= 0) {
-                break;
-            }
-            if (!(this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd)) {
+        for (int i = 1; i < this.items.size() && remaining > 0; i++) {
+            ItemStack stack = this.items.get(i);
+            if (stack.isEmpty()) {
                 continue;
             }
-
-            ItemStack fromDrive = hdd.extractByItemId(itemId, remaining);
-            if (fromDrive.isEmpty()) {
+            ResourceLocation stackId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+            if (!itemId.equals(stackId)) {
                 continue;
             }
-
+            int toTake = Math.min(remaining, stack.getCount());
             if (extracted.isEmpty()) {
-                extracted = fromDrive;
+                extracted = stack.copyWithCount(toTake);
             } else {
-                extracted.grow(fromDrive.getCount());
+                extracted.grow(toTake);
             }
-            remaining -= fromDrive.getCount();
+            stack.shrink(toTake);
+            if (stack.isEmpty()) {
+                this.items.set(i, ItemStack.EMPTY);
+            }
+            remaining -= toTake;
         }
 
         if (!extracted.isEmpty()) {
@@ -1980,51 +1975,19 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public int getHddBytesUsed(int slot) {
-        return getHddBytesUsed(getInventoryPage(), slot);
-    }
-
-    public int getHddBytesUsed(int page, int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null) {
-            return 0;
-        }
-        return hdd.getUsedBytes();
+        return 0;
     }
 
     public int getHddBytesTotal(int slot) {
-        return getHddBytesTotal(getInventoryPage(), slot);
-    }
-
-    public int getHddBytesTotal(int page, int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null) {
-            return 0;
-        }
-        return hdd.getTotalCapacityBytes();
+        return 0;
     }
 
     public int getHddTypesUsed(int slot) {
-        return getHddTypesUsed(getInventoryPage(), slot);
-    }
-
-    public int getHddTypesUsed(int page, int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null) {
-            return 0;
-        }
-        return hdd.getUsedTypes();
+        return 0;
     }
 
     public int getHddTypesMax(int slot) {
-        return getHddTypesMax(getInventoryPage(), slot);
-    }
-
-    public int getHddTypesMax(int page, int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null) {
-            return 0;
-        }
-        return hdd.getMaxTypes();
+        return 0;
     }
 
     public ItemStack removeHddNetworkItem(int slot, int amount) {
@@ -2032,37 +1995,15 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public void setHddNetworkItem(int slot, ItemStack stack) {
-        setHddNetworkItem(getInventoryPage(), slot, stack);
-    }
-
-    public void setHddNetworkItem(int page, int slot, ItemStack stack) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(page);
-        if (hdd == null || slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE || slot >= hdd.getContainerSize()) {
+        if (slot < 0 || slot >= NETWORK_SLOT_PAGE_SIZE) {
             return;
         }
-        hdd.setItem(slot, stack);
+        this.items.set(1 + slot, stack);
         sync();
     }
 
     public boolean hasHddNetworkSlot(int slot) {
-        BeeSXIHddBlockEntity hdd = getHddForPage(getInventoryPage());
-        return hdd != null && slot >= 0 && slot < NETWORK_SLOT_PAGE_SIZE && slot < hdd.getContainerSize();
-    }
-
-    private BeeSXIHddBlockEntity getHddForPage(int page) {
-        if (page < 0 || this.level == null) {
-            return null;
-        }
-
-        if (page >= this.hddPositions.size()) {
-            return null;
-        }
-
-        BlockPos hddPos = this.hddPositions.get(page);
-        if (this.level.getBlockEntity(hddPos) instanceof BeeSXIHddBlockEntity hdd) {
-            return hdd;
-        }
-        return null;
+        return slot >= 0 && slot < NETWORK_SLOT_PAGE_SIZE;
     }
 
     @Override
