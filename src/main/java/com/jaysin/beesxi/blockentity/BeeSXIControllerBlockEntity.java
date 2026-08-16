@@ -87,7 +87,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     public static final int TAB_FLOWERS = 5;
     public static final int TAB_BIOMES = 6;
 
-    public static final int INVENTORY_SLOT_COUNT = 27;
+    public static final int INVENTORY_SLOT_COUNT = 54;
     private static final int SIZE = 1 + INVENTORY_SLOT_COUNT;
     private static final int MIN_MULTIBLOCK_DIM = 3;
     private static final int MAX_MULTIBLOCK_DIM = 15;

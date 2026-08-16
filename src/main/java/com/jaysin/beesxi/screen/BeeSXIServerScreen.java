@@ -25,6 +25,7 @@ import forestry.core.platform.util.SpeciesUtil;
 
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
     private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu_new.png");
+    private static final ResourceLocation BGinv = ResourceLocation.fromNamespaceAndPath("beesxi", "textures/gui/beesxi_controller_menu_inventory.png");
     private static final Map<ResourceLocation, ItemStack> FLOWER_ICON_OVERRIDES = createFlowerIconOverrides();
 
     private static final int VISIBLE_LINES = 7;
@@ -169,8 +170,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         updateWidgetVisibility();
-
-        guiGraphics.blit(BG, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
+        ResourceLocation backgroundTexture = this.menu.getActiveTab() == BeeSXIControllerBlockEntity.TAB_INVENTORY ? BGinv : BG;
+        guiGraphics.blit(backgroundTexture, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
 
         int tab = this.menu.getActiveTab();
         int stateColor = this.menu.isFormed() ? 0x000000 : 0xF0A0A0;

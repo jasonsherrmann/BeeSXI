@@ -9,26 +9,19 @@ Instead of physical apiaries, BeeSXI lets you analyze bees, unlock species trait
 
 - Dynamic BeeSXI Server multiblock (3x3x3 up to 15x15x15)
 - Controller can be on any outside face as long as it is not on an edge/corner
-- Assembled-state visuals for controller and part blocks
-- Molecular Analyzer workflow with timed, per-tick RF drain
-- Paper data-card workflow:
-	- Analyze plain paper to export unlocked species (0 RF)
-	- Analyze species card paper to import/unlock species instantly (0 RF)
-- Virtual hives driven by CPU lines and total RAM budget
-- Per-instance RF/t usage for virtual hive operation
-- Activity-aware production behavior (diurnal/nocturnal reduced rate)
-- Power network support with Power Supply and Battery parts
-- HDD-backed network inventory (type/byte model) shown through controller UI
-- RF/t breakdown shown in GUI (total + instance + analysis)
-- Creative tab containing all BeeSXI blocks/items
-- Controller diagnostics when multiblock is incomplete:
-	- chat output with dimensions
-	- missing/invalid block details
+
 - GUI tabs:
 	- Analysis
 	- Virtual Hives
 	- Inventory
 	- Info (dimensions and block counts)
+	- Bee Species: shows analyzed Bee Species
+	- Flowers: shows analyzed flowers
+	- Biomes: shows analyzed biomes 
+
+- Paper data-card workflow:
+	- Analyze plain paper to export an Export Report containing the unlocked bee species, flowers and biomes
+	- Analyze an Export Report to import/unlock species instantly into another Controller (useful for if you build more than one)
 
 ## Multiblock Rules
 
@@ -37,22 +30,25 @@ Instead of physical apiaries, BeeSXI lets you analyze bees, unlock species trait
 - Edges and corners must be casing
 - Controller must be on an outer face and not on an edge/corner
 - Required parts:
+	- exactly 1 Controller
 	- at least 1 CPU
 	- at least 1 RAM
-	- at least 1 HDD
 	- at least 1 Power Supply
+	- exactly 1 Molecular Analyzer
 - Optional parts:
-	- Battery (recommended for energy buffering)
-- Molecular Analyzer is optional but required for analysis actions
+	- Battery 
+	- Export Bus
+
 
 ## Gameplay Flow
 
-1. Build and form a valid BeeSXI multiblock.
-2. Insert a bee in the analyzer and run analysis to unlock species traits.
-3. Optionally export/import unlocks using paper species cards.
-4. Configure virtual hive lines in the Virtual Hives tab.
-5. Keep the structure powered; instances and analysis consume RF gradually per tick.
-6. Collect products from the controller Inventory tab (HDD network view).
+Obtain Weather Reports: Craft a Weather Reporter, bring it to the desired biome, power it and put in paper, after some time a Weather Report will be created.
+Breed the 4 new bee species, Faber, Fervid, Gelus, Memento
+Build a valid BeeSXI multiblock and power it.
+Insert a bee in the analyzer and run analysis to unlock it.
+Analyze a flower and a biome Weather Report. 
+Set the species, biome and flower in the Virtual Hives tab.
+Collect products from the controller Inventory tab or export using an Export Bus.
 
 ## Dependencies
 
