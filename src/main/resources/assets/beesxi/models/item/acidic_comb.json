@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "forestry:item/bee_combs.0",
+    "layer1": "forestry:item/bee_combs.1"
+  }
+}

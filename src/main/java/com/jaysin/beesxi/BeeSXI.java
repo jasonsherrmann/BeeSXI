@@ -4,7 +4,9 @@ import javax.annotation.Nonnull;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -20,12 +22,17 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
+import net.neoforged.neoforge.fluids.BaseFlowingFluid;
+import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
+import net.minecraft.world.level.material.Fluid;
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIExportBusBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIPowerSupplyBlockEntity;
@@ -36,10 +43,19 @@ import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPowerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIWeatherReporterBlock;
 import com.jaysin.beesxi.command.BeeSXICommands;
+import com.jaysin.beesxi.fluids.AcidFluidBlock;
+import com.jaysin.beesxi.fluids.FluidAcidType;
+import com.jaysin.beesxi.fluids.CoolantFluidBlock;
+import com.jaysin.beesxi.fluids.FluidCoolantType;
+import com.jaysin.beesxi.items.ModHoneycombItem;
 import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
 import com.jaysin.beesxi.server.BeeSXIPartType;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
+
+import forestry.core.platform.models.ClientManager;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.item.Items;
 
 @Mod(BeeSXI.MODID)
 public class BeeSXI {
@@ -50,6 +66,8 @@ public class BeeSXI {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
+    public static final DeferredRegister<FluidType> FLUID_TYPES = DeferredRegister.create(NeoForgeRegistries.FLUID_TYPES, MODID);
+    public static final DeferredRegister<Fluid> FLUIDS = DeferredRegister.create(Registries.FLUID, MODID);
 
     
     public static final DeferredBlock<Block> BEESXI_CONTROLLER = BLOCKS.register("beesxi_controller",
@@ -107,8 +125,14 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> BEESXI_EXPORT_BUS_ITEM = ITEMS.register("beesxi_export_bus", () -> new BlockItem(BEESXI_EXPORT_BUS.get(), new Item.Properties().rarity(Rarity.RARE)));
     public static final DeferredHolder<Item, Item> BEESXI_WEATHER_REPORTER_ITEM = ITEMS.register("beesxi_weather_reporter", () -> new BlockItem(BEESXI_WEATHER_REPORTER.get(), new Item.Properties().rarity(Rarity.UNCOMMON)));
     public static final DeferredHolder<Item, Item> CAPACITOR_EMPTY = ITEMS.register("capacitor_empty", () -> new Item(new Item.Properties()));
-    public static final DeferredHolder<Item, Item> SILICON_WAFER = ITEMS.register("silicon_wafer", () -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)));
+    public static final DeferredHolder<Item, Item> SILICON_WAFER = ITEMS.register("silicon_wafer", () -> new Item(new Item.Properties()));
     public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled",() -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)){
+        @Override
+            public boolean isFoil(ItemStack stack) {
+                return true;
+            }
+        });
+    public static final DeferredHolder<Item, Item> ETCHED_WAFER = ITEMS.register("etched_wafer",() -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)){
         @Override
             public boolean isFoil(ItemStack stack) {
                 return true;
@@ -116,7 +140,67 @@ public class BeeSXI {
         });
     public static final DeferredHolder<Item, Item> MEMORY_CRYSTAL = ITEMS.register("memory_crystal", () -> new Item(new Item.Properties()));
     public static final DeferredHolder<Item, Item> GLASS_FIBER = ITEMS.register("glass_fiber", () -> new Item(new Item.Properties()));
-    public static final DeferredHolder<Item, Item> CASING_PART = ITEMS.register("casing_part", () -> new Item(new Item.Properties())); //casingpart name is temporary, will be changed to something else later
+    public static final DeferredHolder<Item, Item> ACID_DROP = ITEMS.register("acid_drop", () -> new Item(new Item.Properties()));
+    public static final DeferredHolder<Item, Item> COOLANT_DROP = ITEMS.register("coolant_drop", () -> new Item(new Item.Properties()));
+    public static final DeferredHolder<Item, Item> ACIDIC_COMB =
+          ITEMS.register("acidic_comb", () -> new ModHoneycombItem(0xFF5BFF64, 0xFF98FF00));
+    public static final DeferredHolder<Item, Item> COOLANT_COMB =
+          ITEMS.register("coolant_comb", () -> new ModHoneycombItem(0xFF00EEFF, 0xFFA3D9FF));
+
+
+   // 1. Fluid Type
+    public static final DeferredHolder<FluidType, FluidType> ACID_TYPE = FLUID_TYPES.register("acid_type",
+            () -> new FluidAcidType(
+                    FluidType.Properties.create().density(1000).viscosity(1000).lightLevel(5),
+                    ResourceLocation.fromNamespaceAndPath(MODID, "block/acid_still"),
+                    ResourceLocation.fromNamespaceAndPath(MODID, "block/acid_flow"),
+                    0x00FF00 // Neon Green Fog
+            ));
+    public static final DeferredHolder<FluidType, FluidType> COOLANT_TYPE = FLUID_TYPES.register("coolant",
+            () -> new FluidCoolantType(
+                    FluidType.Properties.create().density(1000).viscosity(1000).lightLevel(5),
+                    ResourceLocation.fromNamespaceAndPath(MODID, "block/coolant_still"),
+                    ResourceLocation.fromNamespaceAndPath(MODID, "block/coolant_flow"),
+                    0x00FF00 // Neon Green Fog
+            ));
+
+    // Properties wrapper linking everything together
+    private static final BaseFlowingFluid.Properties ACID_PROPERTIES = new BaseFlowingFluid.Properties(
+            ACID_TYPE, () -> BeeSXI.ACID_SOURCE.get(), () -> BeeSXI.ACID_FLOWING.get())
+            .bucket(() -> BeeSXI.ACID_BUCKET.get())
+            .block(() -> BeeSXI.ACID_BLOCK.get()
+    );
+    private static final BaseFlowingFluid.Properties COOLANT_PROPERTIES = new BaseFlowingFluid.Properties(
+            COOLANT_TYPE, () -> BeeSXI.COOLANT_SOURCE.get(), () -> BeeSXI.COOLANT_FLOWING.get())
+            .bucket(() -> BeeSXI.COOLANT_BUCKET.get())
+            .block(() -> BeeSXI.COOLANT_BLOCK.get()
+    );
+
+    // 2. Fluids
+    public static final DeferredHolder<Fluid, BaseFlowingFluid.Source> ACID_SOURCE = FLUIDS.register("acid",
+            () -> new BaseFlowingFluid.Source(ACID_PROPERTIES));
+
+    public static final DeferredHolder<Fluid, BaseFlowingFluid.Flowing> ACID_FLOWING = FLUIDS.register("acid_flowing",
+            () -> new BaseFlowingFluid.Flowing(ACID_PROPERTIES));
+    
+    public static final DeferredHolder<Fluid, BaseFlowingFluid.Source> COOLANT_SOURCE = FLUIDS.register("coolant",
+            () -> new BaseFlowingFluid.Source(COOLANT_PROPERTIES));
+
+    public static final DeferredHolder<Fluid, BaseFlowingFluid.Flowing> COOLANT_FLOWING = FLUIDS.register("coolant_flowing",
+            () -> new BaseFlowingFluid.Flowing(COOLANT_PROPERTIES));
+    // 3. Fluid Block
+    public static final DeferredHolder<Block, AcidFluidBlock> ACID_BLOCK = BLOCKS.register("acid_block",
+            () -> new AcidFluidBlock(() -> BeeSXI.ACID_SOURCE.get(), 
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.WATER).noCollission().noLootTable()));
+    public static final DeferredHolder<Block, CoolantFluidBlock> COOLANT_BLOCK = BLOCKS.register("coolant_block",
+            () -> new CoolantFluidBlock(() -> BeeSXI.COOLANT_SOURCE.get(), 
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.WATER).noCollission().noLootTable()));
+
+    // 4. Bucket Item
+    public static final DeferredHolder<Item, BucketItem> ACID_BUCKET = ITEMS.register("acid_bucket",
+            () -> new BucketItem(ACID_SOURCE.get(), new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1)));
+    public static final DeferredHolder<Item, BucketItem> COOLANT_BUCKET = ITEMS.register("coolant_bucket",
+            () -> new BucketItem(COOLANT_SOURCE.get(), new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1)));
 
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BEESXI_CREATIVE_TAB = CREATIVE_MODE_TABS.register("beesxi",
@@ -138,7 +222,13 @@ public class BeeSXI {
                 output.accept(SILICON_WAFER.get());
                 output.accept(MEMORY_CRYSTAL.get());
                 output.accept(GLASS_FIBER.get());
-                output.accept(CASING_PART.get());
+                output.accept(ACID_BUCKET.get());
+                output.accept(COOLANT_BUCKET.get());
+                output.accept(ETCHED_WAFER.get());
+                output.accept(ACID_DROP.get());
+                output.accept(COOLANT_DROP.get());
+                output.accept(ACIDIC_COMB.get());
+                output.accept(COOLANT_COMB.get());
                  
             })
             .build());
@@ -149,11 +239,14 @@ public class BeeSXI {
         CREATIVE_MODE_TABS.register(modEventBus);
         BLOCK_ENTITIES.register(modEventBus);
         MENUS.register(modEventBus);
+        FLUIDS.register(modEventBus);
+        FLUID_TYPES.register(modEventBus);
 
         NeoForge.EVENT_BUS.addListener(BeeSXICommands::register);
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerCapabilities);
+        
     }
 
     private void commonSetup(@Nonnull FMLCommonSetupEvent event) {  }

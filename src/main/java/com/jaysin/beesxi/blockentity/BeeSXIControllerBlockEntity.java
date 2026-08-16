@@ -1743,6 +1743,17 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return resolveSpeciesDefaults(speciesId).speed;
     }
 
+    public Map<String, String> getAllelesForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return Map.of();
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(speciesId);
+        if (traits == null) {
+            return Map.of();
+        }
+        return traits.alleles;
+    }
+
     public ResourceLocation getActivityForSpecies(ResourceLocation speciesId) {
         if (speciesId == null) {
             return null;

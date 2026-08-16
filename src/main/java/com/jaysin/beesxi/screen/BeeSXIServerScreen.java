@@ -275,9 +275,11 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             }
 
             ResourceLocation speciesId = analyzed.get(index);
-            float speed = this.menu.getSpeedForSpecies(speciesId);
-            ResourceLocation activityId = this.menu.getActivityForSpecies(speciesId);
-            String activity = activityId == null ? "unknown" : activityId.getPath();
+            Map<String, String> alleles = this.menu.getAllelesForSpecies(speciesId);
+            String speedAllele = alleles.get("speed");
+            String activityAllele = alleles.get("activity");
+            String speedText = formatFriendlyAllele(speedAllele, String.format(java.util.Locale.ROOT, "%.2f", this.menu.getSpeedForSpecies(speciesId)));
+            String activityText = formatFriendlyAllele(activityAllele, "unknown");
             int rowY = this.topPos + 52 + i * 18;
 
             ItemStack beeIcon = ItemStack.EMPTY;
@@ -290,9 +292,41 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
                 captureHoveredStack(beeIcon, this.leftPos + 108, rowY, mouseX, mouseY);
             }
 
-            String traitLine = Utils.trim(speciesId.toString(), 22) + " spd:" + String.format(java.util.Locale.ROOT, "%.2f", speed) + " act:" + Utils.trim(activity, 12);
+            String speciesName = beeSpecies != null ? beeSpecies.getDisplayName().getString() : speciesId.toString();
+            String traitLine = speciesName + " spd:" + speedText + " act:" + Utils.trim(activityText, 12);
             guiGraphics.drawString(this.font, traitLine, this.leftPos + 128, rowY + 4, 0x000000, false);
         }
+    }
+
+    private static String formatFriendlyAllele(String alleleValue, String fallbackValue) {
+        if (alleleValue == null || alleleValue.isBlank()) {
+            return fallbackValue;
+        }
+
+        ResourceLocation alleleId = ResourceLocation.tryParse(alleleValue);
+        if (alleleId == null) {
+            return alleleValue;
+        }
+
+        String translationKey = "allele." + alleleId.getNamespace() + "." + alleleId.getPath().replace('/', '.');
+        String translated = Component.translatable(translationKey).getString();
+        if (translated != null && !translated.isEmpty() && !translated.equals(translationKey)) {
+            return translated;
+        }
+        return alleleId.getPath();
+    }
+
+    private static String formatBiomeName(ResourceLocation biomeId) {
+        if (biomeId == null) {
+            return "unknown";
+        }
+
+        String translationKey = "biome." + biomeId.getNamespace() + "." + biomeId.getPath().replace('/', '.');
+        String translated = Component.translatable(translationKey).getString();
+        if (translated != null && !translated.isEmpty() && !translated.equals(translationKey)) {
+            return translated;
+        }
+        return biomeId.getPath();
     }
 
     private void renderSimpleUnlockList(GuiGraphics guiGraphics, String title, List<ResourceLocation> ids) {
@@ -311,7 +345,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             if (index >= ids.size()) {
                 break;
             }
-            guiGraphics.drawString(this.font, Utils.trim(ids.get(index).toString(), 38), this.leftPos + 108, this.topPos + 52 + i * 10, 0x000000, false);
+            ResourceLocation biomeId = ids.get(index);
+            guiGraphics.drawString(this.font, Utils.trim(formatBiomeName(biomeId), 38), this.leftPos + 108, this.topPos + 52 + i * 10, 0x000000, false);
         }
     }
 

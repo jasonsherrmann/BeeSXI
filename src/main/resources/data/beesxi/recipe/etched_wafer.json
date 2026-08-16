@@ -1,0 +1,27 @@
+{
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/etched_wafer",
+  "liquid": {
+    "amount": 100,
+    "id": "beesxi:acid"
+  },
+  "recipe": {
+    "category": "misc",
+    "key": {
+      "A": {
+        "item": "beesxi:silicon_wafer"
+      }
+
+    },
+    "pattern": [
+      "A"
+      
+    ],
+    "result": {
+      "count": 1,
+      "id": "beesxi:etched_wafer"
+    }
+  },
+  "time": 250
+}

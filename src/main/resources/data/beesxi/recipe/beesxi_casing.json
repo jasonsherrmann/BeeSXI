@@ -1,22 +1,29 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "category": "misc",
-  "key": {
-    "X": {
-      "item": "minecraft:iron_ingot"
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/beesxi_casing",
+  "liquid": {
+    "amount": 500,
+    "id": "beesxi:acid"
+  },
+  "recipe": {
+    "category": "misc",
+    "key": {
+      "A": {
+        "item": "minecraft:iron_ingot"
+      }
+
     },
-    "Y": {
-      "item": "forestry:hardened_casing"
+    "pattern": [
+      "AAA",
+      "A A",
+      "AAA"
+      
+    ],
+    "result": {
+      "count": 4,
+      "id": "beesxi:beesxi_casing"
     }
   },
-  "pattern": [
-    "XXX",
-    "XYX",
-    "XXX"
-  ],
-  "result": {
-    "id": "beesxi:beesxi_casing",
-    "count": 4
-  },
-  "show_notification": true
+  "time": 250
 }

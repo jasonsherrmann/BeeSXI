@@ -1,0 +1,19 @@
+{
+  "type": "forestry:centrifuge",
+  "id": "beesxi:centrifuge/coolant_comb",
+  "input": {
+    "item": "beesxi:coolant_comb"
+  },
+  "products": [
+        {
+      "chance": 0.8,
+      "item": "forestry:beeswax"
+    },
+    {
+      "chance": 0.7,
+      "item": "beesxi:coolant_drop"
+    }
+
+  ],
+  "time": 20
+}

@@ -1,0 +1,17 @@
+{
+  "type": "forestry:squeezer",
+  "chance": 0.0,
+  "id": "beesxi:recipe/acid",
+  "output": {
+    "stack": {
+      "amount": 100,
+      "id": "beesxi:acid"
+    }
+  },
+  "resources": [
+    {
+      "item": "beesxi:acid_drop"
+    }
+  ],
+  "time": 10
+}

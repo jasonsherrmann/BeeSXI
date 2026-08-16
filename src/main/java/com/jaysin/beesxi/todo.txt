@@ -6,9 +6,9 @@ QA check analyzer (shouldnt analyze already analyzed bees)
 Have bees in vHive tab be analysed
 pull bee into controller inventory while analyzing
 change stack size on analyzer,weatherreporter, 
-Add block culling when multiblock is built
 finish new bees
 add fire bee effect
+
 
 
 

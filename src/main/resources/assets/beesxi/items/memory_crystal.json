@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "beesxi:item/memory_crystal"
+    "layer0": "beesxi:item/etched_wafer"
   }
 }

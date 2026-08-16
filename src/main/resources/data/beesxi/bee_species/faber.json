@@ -3,23 +3,18 @@
     "genus": "cogitatio",
     "species": "faber",
     "dominant": true,
-    "outline": 1251615,
-    "body": 6846816,
-    "stripes": 5592405,
+    "outline": 8043520,
+    "body": 4980502,
+    "stripes": 11861760,
     "temperature": "normal",
     "humidity": "arid",
     "products": [
         {
-            "item": "minecraft:diamond",
-            "chance": 0.1
+            "item": "beesxi:acidic_comb",
+            "chance": 0.3
         }
     ],
-    "specialties": [
-        {
-            "item": "beesxi:casing_part",
-            "chance": 0.1
-        }
-    ],
+
     "genome": {
         "forestry:speed": {"value": 0.8},
         "forestry:lifespan": {"value": 40},

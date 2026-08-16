@@ -1,0 +1,7 @@
+{
+  "model": {
+    "loader": "neoforge:fluid_container",
+    "base": "minecraft:item/bucket",
+    "fluid": "beesxi:acid_type"
+  }
+}

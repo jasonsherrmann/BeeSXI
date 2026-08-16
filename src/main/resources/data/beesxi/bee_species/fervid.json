@@ -9,15 +9,15 @@
     "temperature": "hellish",
     "humidity": "arid",
     "products": [
-        {
-            "item": "minecraft:diamond",
-            "chance": 0.1
+    {
+            "item": "beesxi:acidic_comb",
+            "chance": 0.2
         }
     ],
     "specialties": [
         {
             "item": "beesxi:glass_fiber",
-            "chance": 0.1
+            "chance": 0.15
         }
     ],
     "genome": {

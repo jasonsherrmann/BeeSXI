@@ -1,0 +1,18 @@
+{
+  "type": "forestry:centrifuge",
+  "id": "beesxi:centrifuge/acidic_comb",
+  "input": {
+    "item": "beesxi:acidic_comb"
+  },
+  "products": [
+    {
+      "chance": 1.0,
+      "item": "beesxi:acid_drop"
+    },
+    {
+      "chance": 0.4,
+      "item": "forestry:honey_drop"
+    }
+  ],
+  "time": 20
+}

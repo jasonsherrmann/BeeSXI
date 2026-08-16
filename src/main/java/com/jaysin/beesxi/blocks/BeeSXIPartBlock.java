@@ -6,15 +6,20 @@ import javax.annotation.Nullable;
 import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 import com.jaysin.beesxi.server.BeeSXIPartType;
 
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.network.chat.Component;
+import java.util.List;
+import net.minecraft.world.item.Item;
 
 public class BeeSXIPartBlock extends Block {
     public static final BooleanProperty ASSEMBLED = BooleanProperty.create("assembled");
@@ -53,4 +58,24 @@ public class BeeSXIPartBlock extends Block {
             BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }
     }
+        
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag tooltipFlag) {
+    if (Screen.hasShiftDown()) {
+        // Text shown ONLY when holding SHIFT
+        tooltipComponents.add(Component.literal("§ePart of the BeeSXI system."));
+        tooltipComponents.add(Component.literal("§7Parts Required:"));
+        tooltipComponents.add(Component.literal("§71x Controller, >1x Power Supply,"));
+        tooltipComponents.add(Component.literal("§71x Molecular Analyzer,"));
+        tooltipComponents.add(Component.literal("§7>1x RAM, >1x CPU,"));
+        tooltipComponents.add(Component.literal("§7All edges must be Casings"));
+        tooltipComponents.add(Component.literal("§73-15 blocks each side"));
+
+    } else {
+        // Text shown by default
+        tooltipComponents.add(Component.literal("§7Hold §eSHIFT§7 for details."));
+    }
+    
+    super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
+}
 }

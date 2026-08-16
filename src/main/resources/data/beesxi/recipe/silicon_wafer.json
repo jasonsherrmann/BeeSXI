@@ -3,7 +3,7 @@
   "box": [],
   "id": "beesxi:carpenter/silicon_wafer",
   "liquid": {
-    "amount": 5000,
+    "amount": 500,
     "id": "forestry:ethanol"
   },
   "recipe": {

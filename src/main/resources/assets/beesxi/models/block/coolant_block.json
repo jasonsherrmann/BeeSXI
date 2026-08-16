@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "neoforge:fluid": {
+      "model": "beesxi:block/coolant_block"
+    }
+  }
+}

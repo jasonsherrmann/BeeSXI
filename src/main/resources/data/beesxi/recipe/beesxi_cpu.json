@@ -1,18 +1,25 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "category": "misc",
-  "key": {
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/beesxi_cpu",
+  "liquid": {
+    "amount": 500,
+    "id": "beesxi:coolant"
+  },
+  "recipe": {
+    "category": "misc",
+   "key": {
     "X": {
-      "item": "beesxi:silicon_wafer"
+      "item": "beesxi:etched_wafer"
     },
     "Z": {
-      "item": "forestry:emerald_electron_tube"
+      "item": "beesxi:glass_fiber"
     },
     "Y": {
       "item": "beesxi:beesxi_casing"
     }
   },
-  "pattern": [
+ "pattern": [
     "YZY",
     "ZXZ",
     "YZY"
@@ -20,6 +27,7 @@
   "result": {
     "id": "beesxi:beesxi_cpu",
     "count": 1
+  }
   },
-  "show_notification": true
+  "time": 250
 }

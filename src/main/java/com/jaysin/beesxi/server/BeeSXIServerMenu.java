@@ -303,6 +303,13 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.controller.getSpeedForSpecies(speciesId);
     }
 
+    public java.util.Map<String, String> getAllelesForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return java.util.Map.of();
+        }
+        return this.controller.getAllelesForSpecies(speciesId);
+    }
+
     @Nullable
     public ResourceLocation getActivityForLine(int line) {
         ResourceLocation species = getSpeciesForLine(line);

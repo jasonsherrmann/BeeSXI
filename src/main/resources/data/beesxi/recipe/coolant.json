@@ -1,0 +1,17 @@
+{
+  "type": "forestry:squeezer",
+  "chance": 0.0,
+  "id": "beesxi:recipe/coolant",
+  "output": {
+    "stack": {
+      "amount": 100,
+      "id": "beesxi:coolant"
+    }
+  },
+  "resources": [
+    {
+      "item": "beesxi:coolant_drop"
+    }
+  ],
+  "time": 10
+}

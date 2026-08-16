@@ -1,12 +1,19 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "category": "misc",
-  "key": {
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/beesxi_ram",
+  "liquid": {
+    "amount": 500,
+    "id": "beesxi:coolant"
+  },
+  "recipe": {
+    "category": "misc",
+   "key": {
     "X": {
-      "item": "beesxi:silicon_wafer"
+      "item": "beesxi:etched_wafer"
     },
     "Z": {
-      "item": "forestry:ender_electron_tube"
+      "item": "beesxi:memory_crystal"
     },
     "Y": {
       "item": "beesxi:beesxi_casing"
@@ -20,6 +27,7 @@
   "result": {
     "id": "beesxi:beesxi_ram",
     "count": 1
+  }
   },
-  "show_notification": true
+  "time": 250
 }

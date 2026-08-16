@@ -1,25 +1,39 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "category": "misc",
+  "type": "forestry:carpenter",
+  "box": [],
+  "id": "beesxi:carpenter/beesxi_controller",
+  "liquid": {
+    "amount": 500,
+    "id": "beesxi:coolant"
+  },
+  "recipe": {
+    "category": "misc",
   "key": {
+    "V": {
+      "item": "beesxi:memory_crystal"
+    },
+    "W": {
+      "item": "beesxi:glass_fiber"
+    },
     "X": {
       "item": "forestry:portable_analyzer"
     },
     "Z": {
-      "item": "beesxi:silicon_wafer"
+      "item": "beesxi:etched_wafer"
     },
     "Y": {
       "item": "beesxi:beesxi_casing"
     }
   },
   "pattern": [
-    "YZY",
-    "ZXZ",
-    "YZY"
+    "YXY",
+    "WZW",
+    "YVY"
   ],
   "result": {
     "id": "beesxi:beesxi_controller",
     "count": 1
+  }
   },
-  "show_notification": true
+  "time": 250
 }
