@@ -42,13 +42,13 @@ Instead of physical apiaries, BeeSXI lets you analyze bees, unlock species trait
 
 ## Gameplay Flow
 
-Obtain Weather Reports: Craft a Weather Reporter, bring it to the desired biome, power it and put in paper, after some time a Weather Report will be created.
-Breed the 4 new bee species, Faber, Fervid, Gelus, Memento
-Build a valid BeeSXI multiblock and power it.
-Insert a bee in the analyzer and run analysis to unlock it.
-Analyze a flower and a biome Weather Report. 
-Set the species, biome and flower in the Virtual Hives tab.
-Collect products from the controller Inventory tab or export using an Export Bus.
+1. Obtain Weather Reports: Craft a Weather Reporter, bring it to the desired biome, power it and put in paper, after some time a Weather Report will be created.
+2. Breed the 4 new bee species, Faber, Fervid, Gelus, Memento
+3. Build a valid BeeSXI multiblock and power it.
+4. Insert a bee in the analyzer and run analysis to unlock it.
+5. Analyze a flower and a biome Weather Report. 
+6. Set the species, biome and flower in the Virtual Hives tab.
+7. Collect products from the controller Inventory tab or export using an Export Bus.
 
 ## Dependencies
 
@@ -63,4 +63,5 @@ This project is licensed under the GNU General Public License v3.0 only (GPL-3.0
 See the LICENSE file for full terms.
 
 Special Thanks: 
-EcksOdinson 
+EcksOdinson
+TheDarkColour
