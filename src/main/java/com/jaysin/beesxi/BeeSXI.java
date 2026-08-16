@@ -52,6 +52,7 @@ import com.jaysin.beesxi.server.BeeSXIExportBusMenu;
 import com.jaysin.beesxi.server.BeeSXIPartType;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
+import com.jaysin.beesxi.bees.effects.BeeSXIBeeEfectTypes;
 
 import forestry.core.platform.models.ClientManager;
 import net.minecraft.world.level.block.Blocks;
@@ -118,12 +119,12 @@ public class BeeSXI {
     public static final DeferredHolder<Item, Item> BEESXI_CONTROLLER_ITEM = ITEMS.register("beesxi_controller", () -> new BlockItem(BEESXI_CONTROLLER.get(), new Item.Properties().rarity(Rarity.EPIC)));
     public static final DeferredHolder<Item, Item> BEESXI_CPU_ITEM = ITEMS.register("beesxi_cpu", () -> new BlockItem(BEESXI_CPU.get(), new Item.Properties().rarity(Rarity.RARE)));
     public static final DeferredHolder<Item, Item> BEESXI_RAM_ITEM = ITEMS.register("beesxi_ram", () -> new BlockItem(BEESXI_RAM.get(), new Item.Properties().rarity(Rarity.RARE)));
-    public static final DeferredHolder<Item, Item> BEESXI_CASING_ITEM = ITEMS.register("beesxi_casing", () -> new BlockItem(BEESXI_CASING.get(), new Item.Properties().rarity(Rarity.UNCOMMON)));
-    public static final DeferredHolder<Item, Item> MOLECULAR_ANALYZER_ITEM = ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties().rarity(Rarity.RARE)));
-    public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties().rarity(Rarity.RARE)));
+    public static final DeferredHolder<Item, Item> BEESXI_CASING_ITEM = ITEMS.register("beesxi_casing", () -> new BlockItem(BEESXI_CASING.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> MOLECULAR_ANALYZER_ITEM = ITEMS.register("molecular_analyzer", () -> new BlockItem(MOLECULAR_ANALYZER.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_POWER_SUPPLY_ITEM = ITEMS.register("beesxi_power_supply", () -> new BlockItem(BEESXI_POWER_SUPPLY.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> BEESXI_BATTERY_ITEM = ITEMS.register("beesxi_battery", () -> new BlockItem(BEESXI_BATTERY.get(), new Item.Properties()));
-    public static final DeferredHolder<Item, Item> BEESXI_EXPORT_BUS_ITEM = ITEMS.register("beesxi_export_bus", () -> new BlockItem(BEESXI_EXPORT_BUS.get(), new Item.Properties().rarity(Rarity.RARE)));
-    public static final DeferredHolder<Item, Item> BEESXI_WEATHER_REPORTER_ITEM = ITEMS.register("beesxi_weather_reporter", () -> new BlockItem(BEESXI_WEATHER_REPORTER.get(), new Item.Properties().rarity(Rarity.UNCOMMON)));
+    public static final DeferredHolder<Item, Item> BEESXI_EXPORT_BUS_ITEM = ITEMS.register("beesxi_export_bus", () -> new BlockItem(BEESXI_EXPORT_BUS.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> BEESXI_WEATHER_REPORTER_ITEM = ITEMS.register("beesxi_weather_reporter", () -> new BlockItem(BEESXI_WEATHER_REPORTER.get(), new Item.Properties()));
     public static final DeferredHolder<Item, Item> CAPACITOR_EMPTY = ITEMS.register("capacitor_empty", () -> new Item(new Item.Properties()));
     public static final DeferredHolder<Item, Item> SILICON_WAFER = ITEMS.register("silicon_wafer", () -> new Item(new Item.Properties()));
     public static final DeferredHolder<Item, Item> CAPACITOR_FILLED = ITEMS.register("capacitor_filled",() -> new Item(new Item.Properties().rarity(Rarity.UNCOMMON)){
@@ -241,6 +242,7 @@ public class BeeSXI {
         MENUS.register(modEventBus);
         FLUIDS.register(modEventBus);
         FLUID_TYPES.register(modEventBus);
+        BeeSXIBeeEfectTypes.BEE_EFFECT_TYPES.register(modEventBus);
 
         NeoForge.EVENT_BUS.addListener(BeeSXICommands::register);
 

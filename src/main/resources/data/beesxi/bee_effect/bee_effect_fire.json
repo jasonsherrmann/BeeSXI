@@ -1,0 +1,8 @@
+{
+  "type": "beesxi:place_block",
+  "block": {
+    "Name": "minecraft:fire"
+  },
+  "throttle": 20,
+  "chance": 0.4
+}
