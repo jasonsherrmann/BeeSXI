@@ -16,7 +16,7 @@
     ],
 
     "genome": {
-        "forestry:speed": {"value": 0.8},
+        "forestry:speed": {"value": 1.0},
         "forestry:lifespan": {"value": 40},
         "forestry:fertility": {"value": 2},
         "forestry:activity": {"value": "forestry:activity_diurnal"},
