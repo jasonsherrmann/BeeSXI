@@ -20,8 +20,8 @@ Instead of physical apiaries, BeeSXI lets you analyze bees, unlock species trait
 	- Biomes: shows analyzed biomes 
 
 - Paper data-card workflow:
-	- Analyze plain paper to export an Export Report containing the unlocked bee species, flowers and biomes
-	- Analyze an Export Report to import/unlock species instantly into another Controller (useful for if you build more than one)
+	- Analyze plain paper to export an Export Report containing the analyzed bee specimens, species, flowers and biomes
+	- Analyze an Export Report to import/unlock the saved specimen data instantly into another Controller (useful for if you build more than one)
 
 ## Multiblock Rules
 

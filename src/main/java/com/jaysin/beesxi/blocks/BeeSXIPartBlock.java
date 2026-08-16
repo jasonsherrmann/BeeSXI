@@ -43,6 +43,14 @@ public class BeeSXIPartBlock extends Block {
     }
 
     @Override
+    public void onRemove(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState newState, boolean isMoving) {
+        if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
+            BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
+    }
+
+    @Override
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
         if (!level.isClientSide && !player.isCreative()) {
             popResource(level, pos, new ItemStack(this));

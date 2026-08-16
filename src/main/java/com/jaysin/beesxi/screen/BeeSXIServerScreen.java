@@ -19,8 +19,12 @@ import com.jaysin.beesxi.server.BeeSXIServerMenu;
 import com.jaysin.beesxi.util.Utils;
 
 import forestry.api.apiculture.genetics.BeeLifeStage;
+import forestry.api.apiculture.genetics.IBee;
 import forestry.api.apiculture.genetics.IBeeSpecies;
 import forestry.api.core.IProduct;
+import forestry.api.core.genetics.IIndividual;
+import forestry.api.core.genetics.IGenome;
+import forestry.core.engine.genetics.ItemGE;
 import forestry.core.platform.util.SpeciesUtil;
 
 public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu> {
@@ -240,9 +244,10 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
 
         guiGraphics.drawString(this.font, "Insert bee, flower, or weather report in analyze slot", this.leftPos + 108, this.topPos + 84, 0x000000, false);
         guiGraphics.drawString(this.font, "Input paper and press the analyze button to export", this.leftPos + 108, this.topPos + 94, 0x000000, false);
-        guiGraphics.drawString(this.font, "Species analyzed: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 114, 0x000000, false);
-        guiGraphics.drawString(this.font, "Flowers unlocked: " + this.menu.getUnlockedFlowerIds().size(), this.leftPos + 108, this.topPos + 124, 0x000000, false);
-        guiGraphics.drawString(this.font, "Biomes unlocked: " + this.menu.getUnlockedBiomeIds().size(), this.leftPos + 108, this.topPos + 134, 0x000000, false);
+        guiGraphics.drawString(this.font, "Specimen unlocked: " + this.menu.getAnalyzedSpecimenKeys().size(), this.leftPos + 108, this.topPos + 114, 0x000000, false);
+        guiGraphics.drawString(this.font, "Species unlocked: " + this.menu.getAnalyzedSpeciesIds().size(), this.leftPos + 108, this.topPos + 124, 0x000000, false);
+        guiGraphics.drawString(this.font, "Flowers unlocked: " + this.menu.getUnlockedFlowerIds().size(), this.leftPos + 108, this.topPos + 134, 0x000000, false);
+        guiGraphics.drawString(this.font, "Biomes unlocked: " + this.menu.getUnlockedBiomeIds().size(), this.leftPos + 108, this.topPos + 144, 0x000000, false);
 
         String analyzeProgressText = this.menu.isAnalyzing() ? "Analysis Progress: " + this.menu.getAnalyzeProgressPercent() + "%" : "Analysis Progress: Ready";
         guiGraphics.drawString(this.font, analyzeProgressText, this.leftPos + 108, this.topPos + 44, 0x000000, false);
@@ -258,8 +263,8 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
     }
 
     private void renderBeeSpeciesTab(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        List<ResourceLocation> analyzed = this.menu.getAnalyzedSpeciesIds();
-        guiGraphics.drawString(this.font, "Unlocked Bee Species", this.leftPos + 108, this.topPos + 30, 0xA0E0A0, false);
+        List<String> analyzed = this.menu.getAnalyzedSpecimenKeys();
+        guiGraphics.drawString(this.font, "Analyzed Bee Specimens", this.leftPos + 108, this.topPos + 30, 0xA0E0A0, false);
         guiGraphics.drawString(this.font, "Count: " + analyzed.size(), this.leftPos + 108, this.topPos + 40, 0x000000, false);
 
         int maxLines = 6;
@@ -275,46 +280,28 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
                 break;
             }
 
-            ResourceLocation speciesId = analyzed.get(index);
-            Map<String, String> alleles = this.menu.getAllelesForSpecies(speciesId);
-            String speedAllele = alleles.get("speed");
-            String activityAllele = alleles.get("activity");
-            String speedText = formatFriendlyAllele(speedAllele, String.format(java.util.Locale.ROOT, "%.2f", this.menu.getSpeedForSpecies(speciesId)));
-            String activityText = formatFriendlyAllele(activityAllele, "unknown");
+            String specimenKey = analyzed.get(index);
+            ResourceLocation speciesId = this.menu.getSpeciesForSpecimenKey(specimenKey);
+            Map<String, String> alleles = this.menu.getAllelesForSpecimenKey(specimenKey);
+            String speedAllele = alleles.getOrDefault("speed", "?");
+            String activityAllele = alleles.getOrDefault("activity", "?");
+            IBeeSpecies beeSpecies = speciesId != null && !speciesId.getNamespace().isEmpty() && !speciesId.getPath().isEmpty()
+                ? SpeciesUtil.getBeeSpecies(speciesId)
+                : null;
+
             int rowY = this.topPos + 52 + i * 18;
 
-            ItemStack beeIcon = ItemStack.EMPTY;
-            IBeeSpecies beeSpecies = SpeciesUtil.getBeeSpecies(speciesId);
-            if (beeSpecies != null) {
-                beeIcon = beeSpecies.createStack(BeeLifeStage.DRONE);
-            }
+            ItemStack beeIcon = this.menu.getBeeStackForSpecimenKey(specimenKey);
             if (!beeIcon.isEmpty()) {
                 guiGraphics.renderItem(beeIcon, this.leftPos + 108, rowY);
                 captureHoveredStack(beeIcon, this.leftPos + 108, rowY, mouseX, mouseY);
             }
 
-            String speciesName = beeSpecies != null ? beeSpecies.getDisplayName().getString() : speciesId.toString();
-            String traitLine = speciesName + " spd:" + speedText + " act:" + Utils.trim(activityText, 12);
+            String speciesName = beeSpecies != null ? beeSpecies.getDisplayName().getString() : (speciesId == null ? "unknown" : speciesId.toString());
+            String specimenLabel = specimenKey.substring(0, Math.min(8, specimenKey.length()));
+            String traitLine = "Specimen ID: " + specimenLabel + " | Species:" + speciesName;
             guiGraphics.drawString(this.font, traitLine, this.leftPos + 128, rowY + 4, 0x000000, false);
         }
-    }
-
-    private static String formatFriendlyAllele(String alleleValue, String fallbackValue) {
-        if (alleleValue == null || alleleValue.isBlank()) {
-            return fallbackValue;
-        }
-
-        ResourceLocation alleleId = ResourceLocation.tryParse(alleleValue);
-        if (alleleId == null) {
-            return alleleValue;
-        }
-
-        String translationKey = "allele." + alleleId.getNamespace() + "." + alleleId.getPath().replace('/', '.');
-        String translated = Component.translatable(translationKey).getString();
-        if (translated != null && !translated.isEmpty() && !translated.equals(translationKey)) {
-            return translated;
-        }
-        return alleleId.getPath();
     }
 
     private static String formatBiomeName(ResourceLocation biomeId) {
@@ -371,6 +358,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
                 continue;
             }
 
+            String specimenKey = this.menu.getSpecimenKeyForLine(absoluteLine);
             ResourceLocation species = this.menu.getSpeciesForLine(absoluteLine);
             ResourceLocation biome = this.menu.getBiomeForLine(absoluteLine);
             ResourceLocation flower = this.menu.getFlowerForLine(absoluteLine);
@@ -385,7 +373,7 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             //guiGraphics.drawString(this.font, "S" + String.format(java.util.Locale.ROOT, "%.2f", speed), this.leftPos + 340, y + 4, 0xA7E8B6, false);
             guiGraphics.drawString(this.font, "x" + instances, this.leftPos + 366, y + 4, 0xFFFF99, false);
 
-            renderSpeciesRowIcons(guiGraphics, species, y, mouseX, mouseY);
+            renderSpeciesRowIcons(guiGraphics, specimenKey, species, y, mouseX, mouseY);
         }
     }
     private static Map<ResourceLocation, ItemStack> createFlowerIconOverrides() {
@@ -418,16 +406,22 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         guiGraphics.renderItem(flowerStack, x, rowY);
         captureHoveredStack(flowerStack, x, rowY, mouseX, mouseY);
     }
-    private void renderSpeciesRowIcons(GuiGraphics guiGraphics, ResourceLocation speciesId, int rowY, int mouseX, int mouseY) {
-        ItemStack beeIcon = ItemStack.EMPTY;
+    private void renderSpeciesRowIcons(GuiGraphics guiGraphics, String specimenKey, ResourceLocation speciesId, int rowY, int mouseX, int mouseY) {
+        ItemStack beeIcon = specimenKey != null ? this.menu.getBeeStackForSpecimenKey(specimenKey) : this.menu.getBeeStackForSpecies(speciesId);
         List<ItemStack> productIcons = new ArrayList<>();
 
-        if (speciesId != null) {
+        if (speciesId != null && !speciesId.getNamespace().isEmpty() && !speciesId.getPath().isEmpty() && beeIcon.isEmpty()) {
             IBeeSpecies beeSpecies = SpeciesUtil.getBeeSpecies(speciesId);
             if (beeSpecies != null) {
                 beeIcon = beeSpecies.createStack(BeeLifeStage.DRONE);
                 collectProductIcons(productIcons, beeSpecies.getProducts());
                 collectProductIcons(productIcons, beeSpecies.getSpecialties());
+            }
+        } else {
+            IIndividual individual = ItemGE.getIndividual(beeIcon);
+            if (individual instanceof IBee bee) {
+                collectStackProductIcons(productIcons, bee.getProduceList());
+                collectStackProductIcons(productIcons, bee.getSpecialtyList());
             }
         }
 
@@ -468,6 +462,32 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
             }
 
             output.add(stack);
+            if (output.size() >= 3) {
+                return;
+            }
+        }
+    }
+
+    private static void collectStackProductIcons(List<ItemStack> output, List<ItemStack> productStacks) {
+        Set<ResourceLocation> seen = new java.util.HashSet<>();
+        for (ItemStack existing : output) {
+            ResourceLocation key = keyFor(existing);
+            if (key != null) {
+                seen.add(key);
+            }
+        }
+
+        for (ItemStack stack : productStacks) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+
+            ResourceLocation key = keyFor(stack);
+            if (key != null && !seen.add(key)) {
+                continue;
+            }
+
+            output.add(stack.copy());
             if (output.size() >= 3) {
                 return;
             }
@@ -531,10 +551,10 @@ public class BeeSXIServerScreen extends AbstractContainerScreen<BeeSXIServerMenu
         }
         if (this.analyzedPrevButton != null && this.analyzedNextButton != null) {
             int listSize = switch (tab) {
-                case BeeSXIControllerBlockEntity.TAB_BEE_SPECIES -> this.menu.getAnalyzedSpeciesIds().size();
+                case BeeSXIControllerBlockEntity.TAB_BEE_SPECIES -> this.menu.getAnalyzedSpecimenKeys().size();
                 case BeeSXIControllerBlockEntity.TAB_FLOWERS -> this.menu.getUnlockedFlowerIds().size();
                 case BeeSXIControllerBlockEntity.TAB_BIOMES -> this.menu.getUnlockedBiomeIds().size();
-                default -> this.menu.getAnalyzedSpeciesIds().size();
+                default -> this.menu.getAnalyzedSpecimenKeys().size();
             };
             int pageSize = tab == BeeSXIControllerBlockEntity.TAB_BEE_SPECIES ? 6 : 12;
             int maxAnalyzedPage = Math.max(0, (listSize - 1) / pageSize);

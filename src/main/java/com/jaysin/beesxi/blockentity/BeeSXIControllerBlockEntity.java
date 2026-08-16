@@ -1,5 +1,8 @@
 package com.jaysin.beesxi.blockentity;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,6 +14,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.ArrayDeque;
 import java.util.Deque;
+
+import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -54,6 +59,7 @@ import com.jaysin.beesxi.server.BeeSXIPartType;
 import com.jaysin.beesxi.server.BeeSXIServerMenu;
 
 import forestry.api.IForestryApi;
+import forestry.api.apiculture.genetics.IBee;
 import forestry.api.apiculture.genetics.IBeeSpecies;
 import forestry.api.apiculture.ForestryActivityTypes;
 import forestry.api.core.climate.IClimateManager;
@@ -96,6 +102,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private static final int ANALYZE_DURATION_TICKS = 20 * 60 * 5;
     private static final long ANALYZE_RF_COST = 10_000_000L;
     private static final String PAPER_SPECIES_KEY = "BeeSXIAnalyzedSpecies";
+    private static final String PAPER_SPECIMENS_KEY = "BeeSXISpecimens";
     private static final String PAPER_BIOMES_KEY = "BeeSXIUnlockedBiomes";
     private static final String PAPER_FLOWERS_KEY = "BeeSXIUnlockedFlowers";
     private static final String PAPER_ALLELES_KEY = "BeeSXIAlleles";
@@ -105,7 +112,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private static final long RF_PER_TICK_CPU = 0L;
     private static final long RF_PER_TICK_RAM = 0L;
     private static final long RF_PER_TICK_CONTROLLER = 0L;
-    private static final ResourceLocation DEFAULT_UNLOCKED_SPECIES = ResourceLocation.fromNamespaceAndPath("forestry", "forest");
     private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL, ForestryActivityTypes.CATHEMERAL);
     private static final Set<ResourceLocation> FULL_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.METATURNAL);
     private static final Set<ResourceLocation> ONE_TWELFTH_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.CREPUSCULAR);
@@ -116,7 +122,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     };
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
-    private final Map<ResourceLocation, AnalyzedBeeTraits> analyzedSpecies = new LinkedHashMap<>();
+    private final Map<String, AnalyzedBeeTraits> analyzedSpecies = new LinkedHashMap<>();
     private final Set<ResourceLocation> unlockedBiomes = new HashSet<>();
     private final Set<ResourceLocation> unlockedFlowers = new HashSet<>();
     private final List<VirtualHiveConfig> virtualHives = new ArrayList<>();
@@ -133,12 +139,15 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private boolean analyzing;
     private int analyzeTicksRemaining;
     private long analyzeEnergyRemaining;
+    private String pendingAnalyzeKey;
     private ResourceLocation pendingAnalyzeSpeciesId;
     private float pendingAnalyzeSpeed;
     private ResourceLocation pendingAnalyzeActivityId;
     private ResourceLocation pendingAnalyzeBiomeId;
     private ResourceLocation pendingAnalyzeFlowerId;
     private Map<String, String> pendingAnalyzeAlleles = Map.of();
+    private IGenome pendingAnalyzeGenome;
+    private ItemStack pendingAnalyzeBeeStack = ItemStack.EMPTY;
     private long lastSyncedPowerStored = Long.MIN_VALUE;
     private long lastSyncedPowerCapacity = Long.MIN_VALUE;
     private int lastSyncedAnalyzeProgress = Integer.MIN_VALUE;
@@ -241,11 +250,59 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     public BeeSXIControllerBlockEntity(BlockPos pos, BlockState state) {
         super(BeeSXI.BEESXI_CONTROLLER_BLOCK_ENTITY.get(), pos, state);
-        ensureDefaultUnlocks();
     }
 
-    private void ensureDefaultUnlocks() {
-        this.analyzedSpecies.putIfAbsent(DEFAULT_UNLOCKED_SPECIES, resolveSpeciesDefaults(DEFAULT_UNLOCKED_SPECIES));
+    private String createBeeAnalysisKey(ResourceLocation speciesId, IGenome genome, float speed, ResourceLocation activityTypeId, ResourceLocation biomeId, ResourceLocation flowerId) {
+        Map<String, String> alleleMap = genome == null ? Map.of() : extractAlleles(genome);
+        List<String> parts = new ArrayList<>();
+        parts.add(speciesId == null ? "" : speciesId.toString());
+        parts.add(String.valueOf(speed));
+        parts.add(activityTypeId == null ? "" : activityTypeId.toString());
+        parts.add(biomeId == null ? "" : biomeId.toString());
+        parts.add(flowerId == null ? "" : flowerId.toString());
+        List<String> alleleKeys = new ArrayList<>(alleleMap.keySet());
+        Collections.sort(alleleKeys);
+        for (String key : alleleKeys) {
+            parts.add(key + "=" + alleleMap.get(key));
+        }
+        String payload = String.join("|", parts);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return Integer.toHexString(payload.hashCode());
+        }
+    }
+
+    private String createBeeAnalysisKey(ResourceLocation speciesId, Map<String, String> alleles, float speed, ResourceLocation activityTypeId, ResourceLocation biomeId, ResourceLocation flowerId) {
+        List<String> parts = new ArrayList<>();
+        parts.add(speciesId == null ? "" : speciesId.toString());
+        parts.add(String.valueOf(speed));
+        parts.add(activityTypeId == null ? "" : activityTypeId.toString());
+        parts.add(biomeId == null ? "" : biomeId.toString());
+        parts.add(flowerId == null ? "" : flowerId.toString());
+        List<String> alleleKeys = new ArrayList<>(alleles.keySet());
+        Collections.sort(alleleKeys);
+        for (String key : alleleKeys) {
+            parts.add(key + "=" + alleles.get(key));
+        }
+        String payload = String.join("|", parts);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return Integer.toHexString(payload.hashCode());
+        }
     }
 
     private boolean isFlowerItem(ItemStack stack) {
@@ -295,11 +352,26 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 continue;
             }
 
-            Object value = invokeGenomeActiveValue(genome, chromosome);
-            if (value == null) {
+            Object allele = null;
+            try {
+                allele = genome.getClass().getMethod("getActiveAllele", chromosome.getClass()).invoke(genome, chromosome);
+            } catch (ReflectiveOperationException ignored) {
+                // Fall back to the old active-value route when a chromosome does not expose an allele object.
+            }
+
+            if (allele == null) {
+                allele = invokeGenomeActiveValue(genome, chromosome);
+            }
+            if (allele == null) {
                 continue;
             }
-            alleles.put(field.getName().toLowerCase(java.util.Locale.ROOT), value.toString());
+
+            String alleleId = resolveAlleleIdString(allele);
+            if (alleleId != null) {
+                alleles.put(field.getName().toLowerCase(java.util.Locale.ROOT), alleleId);
+            } else {
+                alleles.put(field.getName().toLowerCase(java.util.Locale.ROOT), allele.toString());
+            }
         }
         return alleles;
     }
@@ -319,6 +391,35 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             }
         }
         return null;
+    }
+
+    private String resolveAlleleIdString(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            java.lang.reflect.Method alleleIdMethod = value.getClass().getMethod("alleleId");
+            Object alleleId = alleleIdMethod.invoke(value);
+            if (alleleId != null) {
+                return alleleId.toString();
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // Not every value is an allele instance, so fall back to the original string form.
+        }
+        return null;
+    }
+
+    private Map<String, String> parseAlleles(CompoundTag allelesTag) {
+        if (allelesTag == null || allelesTag.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, String> alleles = new HashMap<>();
+        for (String key : allelesTag.getAllKeys()) {
+            alleles.put(key, allelesTag.getString(key));
+        }
+        return alleles;
     }
 
     private ResourceLocation findFlowerFromAlleles(Map<String, String> alleles) {
@@ -503,51 +604,80 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return compatible;
     }
 
+    private static boolean isValidSpeciesId(@Nullable ResourceLocation speciesId) {
+        return speciesId != null && !speciesId.getNamespace().isEmpty() && !speciesId.getPath().isEmpty();
+    }
+
+    private static @Nullable ResourceLocation safeParseSpeciesId(@Nullable String rawId) {
+        if (rawId == null || rawId.isBlank()) {
+            return null;
+        }
+        ResourceLocation parsed = ResourceLocation.tryParse(rawId);
+        return isValidSpeciesId(parsed) ? parsed : null;
+    }
+
+    private static @Nullable IBeeSpecies safeGetBeeSpecies(@Nullable ResourceLocation speciesId) {
+        if (!isValidSpeciesId(speciesId)) {
+            return null;
+        }
+
+        try {
+            return SpeciesUtil.getBeeSpecies(speciesId);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Skipping invalid bee species lookup for {}: {}", speciesId, e.getMessage());
+            return null;
+        }
+    }
+
     private boolean canRunVirtualHive(VirtualHiveConfig config) {
         if (config == null) {
             debugLog("Virtual hive evaluation skipped: config was null");
             return false;
         }
-        if (config.speciesId == null) {
+
+        AnalyzedBeeTraits specimenTraits = config.specimenKey == null ? null : this.analyzedSpecies.get(config.specimenKey);
+        ResourceLocation speciesId = specimenTraits != null ? specimenTraits.speciesId : config.speciesId;
+
+        if (speciesId == null) {
             debugLog("Virtual hive evaluation skipped: species missing for hive instances={} biome={} flower={}", config.instances, config.biomeId, config.flowerItemId);
             return false;
         }
         if (config.instances <= 0) {
-            debugLog("Virtual hive evaluation skipped: zero instances for species={} biome={} flower={}", config.speciesId, config.biomeId, config.flowerItemId);
+            debugLog("Virtual hive evaluation skipped: zero instances for species={} biome={} flower={}", speciesId, config.biomeId, config.flowerItemId);
             return false;
         }
         if (config.biomeId == null) {
-            debugLog("Virtual hive evaluation skipped: biome missing for species={} instances={} flower={}", config.speciesId, config.instances, config.flowerItemId);
+            debugLog("Virtual hive evaluation skipped: biome missing for species={} instances={} flower={}", speciesId, config.instances, config.flowerItemId);
             return false;
         }
         if (config.flowerItemId == null) {
-            debugLog("Virtual hive evaluation skipped: flower missing for species={} instances={} biome={}", config.speciesId, config.instances, config.biomeId);
+            debugLog("Virtual hive evaluation skipped: flower missing for species={} instances={} biome={}", speciesId, config.instances, config.biomeId);
             return false;
         }
 
-        IBeeSpecies species = SpeciesUtil.getBeeSpecies(config.speciesId);
+        IBeeSpecies species = safeGetBeeSpecies(speciesId);
         if (species == null) {
-            debugLog("Virtual hive evaluation skipped: species not found {}", config.speciesId);
+            debugLog("Virtual hive evaluation skipped: species not found {}", speciesId);
             return false;
         }
 
-        AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+        AnalyzedBeeTraits traits = specimenTraits != null ? specimenTraits : getAnalyzedTraitsForSpecies(speciesId);
         if (traits == null) {
-            debugLog("Virtual hive evaluation skipped: species {} has no analyzed traits", config.speciesId);
+            debugLog("Virtual hive evaluation skipped: species {} has no analyzed traits", speciesId);
             return false;
         }
 
         if (!isBiomeCompatibleWithSpecies(config.biomeId, species)) {
-            debugLog("Virtual hive biome compatibility failed for species={} selectedBiome={}", config.speciesId, config.biomeId);
+            debugLog("Virtual hive biome compatibility failed for species={} selectedBiome={}", speciesId, config.biomeId);
             return false;
         }
 
         if (traits.requiredFlowerId != null && !isCompatibleFlower(config.flowerItemId, traits.requiredFlowerId)) {
-            debugLog("Virtual hive flower compatibility failed for species={} selectedFlower={} requiredFlower={}", config.speciesId, config.flowerItemId, traits.requiredFlowerId);
+            debugLog("Virtual hive flower compatibility failed for species={} selectedFlower={} requiredFlower={}", speciesId, config.flowerItemId, traits.requiredFlowerId);
             return false;
         }
 
-        debugLog("Virtual hive compatibility passed for species={} selectedBiome={} selectedFlower={} requiredFlower={}", config.speciesId, config.biomeId, config.flowerItemId, traits.requiredFlowerId);
+        debugLog("Virtual hive compatibility passed for species={} selectedBiome={} selectedFlower={} requiredFlower={}", speciesId, config.biomeId, config.flowerItemId, traits.requiredFlowerId);
         return true;
     }
 
@@ -561,7 +691,44 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return total;
     }
 
-    private boolean hasOutputCapacityForSpecies(IBeeSpecies species) {
+    private @Nullable IBee getSavedBeeForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return null;
+        }
+
+        ItemStack beeStack = getBeeStackForSpecies(speciesId);
+        if (beeStack.isEmpty()) {
+            return null;
+        }
+
+        IIndividual individual = ItemGE.getIndividual(beeStack);
+        if (individual instanceof IBee bee) {
+            return bee;
+        }
+        return null;
+    }
+
+    private boolean hasOutputCapacityForSpecies(ResourceLocation speciesId) {
+        IBeeSpecies species = safeGetBeeSpecies(speciesId);
+        if (species == null) {
+            return false;
+        }
+
+        IBee savedBee = getSavedBeeForSpecies(speciesId);
+        if (savedBee != null) {
+            for (ItemStack productStack : savedBee.getProduceList()) {
+                if (!productStack.isEmpty() && canAcceptProducedStack(productStack)) {
+                    return true;
+                }
+            }
+            for (ItemStack specialtyStack : savedBee.getSpecialtyList()) {
+                if (!specialtyStack.isEmpty() && canAcceptProducedStack(specialtyStack)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         for (IProduct product : species.getProducts()) {
             if (canAcceptProducedStack(product.createStack())) {
                 return true;
@@ -602,9 +769,13 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     private AnalyzedBeeTraits resolveSpeciesDefaults(ResourceLocation speciesId) {
-        IBeeSpecies species = SpeciesUtil.getBeeSpecies(speciesId);
+        if (!isValidSpeciesId(speciesId)) {
+            return new AnalyzedBeeTraits(speciesId, 1.0F, null, null, null, Map.of(), null);
+        }
+
+        IBeeSpecies species = safeGetBeeSpecies(speciesId);
         if (species == null) {
-            return new AnalyzedBeeTraits(1.0F, null, null, null, Map.of());
+            return new AnalyzedBeeTraits(speciesId, 1.0F, null, null, null, Map.of(), null);
         }
 
         IGenome genome = species.createIndividual().getGenome();
@@ -612,7 +783,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         ResourceLocation activityId = genome.getActiveValue(BeeChromosomes.ACTIVITY);
         Map<String, String> alleles = extractAlleles(genome);
         ResourceLocation flowerId = findFlowerFromAlleles(alleles);
-        return new AnalyzedBeeTraits(speed, activityId, null, flowerId, alleles);
+        return new AnalyzedBeeTraits(speciesId, speed, activityId, null, flowerId, alleles, genome);
     }
 
     public void serverTick(Level level, BlockPos pos, BlockState state) {
@@ -940,7 +1111,8 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
         for (VirtualHiveConfig config : this.virtualHives) {
             config.instances = Math.max(0, config.instances);
-            if (config.speciesId != null && !this.analyzedSpecies.containsKey(config.speciesId)) {
+            if (config.specimenKey != null && !this.analyzedSpecies.containsKey(config.specimenKey)) {
+                config.specimenKey = null;
                 config.speciesId = null;
             }
             if (config.biomeId != null && !this.unlockedBiomes.contains(config.biomeId)) {
@@ -978,6 +1150,25 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 overflow -= reduce;
             }
         }
+    }
+
+    public void clearAssembledStateForConnectedStructure() {
+        Level level = this.level;
+        if (level == null) {
+            return;
+        }
+
+        Set<BlockPos> connected = collectConnectedStructureComponent(level);
+        for (BlockPos pos : connected) {
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof BeeSXIControllerBlock && state.getValue(BeeSXIControllerBlock.ASSEMBLED)) {
+                level.setBlock(pos, state.setValue(BeeSXIControllerBlock.ASSEMBLED, false), 3);
+            } else if (state.getBlock() instanceof BeeSXIPartBlock && state.getValue(BeeSXIPartBlock.ASSEMBLED)) {
+                level.setBlock(pos, state.setValue(BeeSXIPartBlock.ASSEMBLED, false), 3);
+            }
+        }
+
+        this.assembledPositions.clear();
     }
 
     private void applyAssembledState(List<BlockPos> structurePositions, boolean assembled) {
@@ -1061,42 +1252,35 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     private void cycleSpecies(int line, int direction) {
-        List<ResourceLocation> species = getAnalyzedSpeciesIds();
-        if (species.isEmpty()) {
-            this.virtualHives.get(line).speciesId = null;
+        VirtualHiveConfig config = this.virtualHives.get(line);
+        List<String> specimenKeys = getAnalyzedSpecimenKeys();
+        if (specimenKeys.isEmpty()) {
+            config.specimenKey = null;
+            config.speciesId = null;
+            config.flowerItemId = null;
             return;
         }
 
-        ResourceLocation current = this.virtualHives.get(line).speciesId;
-        int index;
-        if (current == null) {
-            index = direction < 0 ? species.size() - 1 : 0;
+        int currentIndex = config.specimenKey == null ? -1 : specimenKeys.indexOf(config.specimenKey);
+        int nextIndex;
+        if (currentIndex < 0) {
+            nextIndex = direction < 0 ? specimenKeys.size() - 1 : 0;
         } else {
-            index = species.indexOf(current);
-            if (index < 0) {
-                index = 0;
-            } else {
-                index = (index + direction + species.size()) % species.size();
-            }
+            nextIndex = (currentIndex + direction + specimenKeys.size()) % specimenKeys.size();
         }
 
-        VirtualHiveConfig config = this.virtualHives.get(line);
-        config.speciesId = species.get(index);
+        config.specimenKey = specimenKeys.get(nextIndex);
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.specimenKey);
+        config.speciesId = traits == null ? null : traits.speciesId;
 
         List<ResourceLocation> compatibleFlowers = getSelectableFlowerIds(config);
-        debugLog("Virtual hive species changed: line={} species={} compatibleFlowers={}", line, config.speciesId, compatibleFlowers);
-        if (config.flowerItemId == null) {
-            if (!compatibleFlowers.isEmpty()) {
-                config.flowerItemId = compatibleFlowers.get(0);
-            }
+        debugLog("Virtual hive specimen changed: line={} specimenKey={} species={} compatibleFlowers={}", line, config.specimenKey, config.speciesId, compatibleFlowers);
+        if (compatibleFlowers.isEmpty()) {
+            config.flowerItemId = null;
             return;
         }
 
-        if (compatibleFlowers.contains(config.flowerItemId)) {
-            return;
-        }
-
-        if (!compatibleFlowers.isEmpty()) {
+        if (config.flowerItemId == null || !compatibleFlowers.contains(config.flowerItemId)) {
             config.flowerItemId = compatibleFlowers.get(0);
         }
     }
@@ -1165,13 +1349,24 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
 
     private List<ResourceLocation> getSelectableFlowerIds(VirtualHiveConfig config) {
         List<ResourceLocation> unlockedFlowers = getUnlockedFlowerIds();
-        if (config == null || config.speciesId == null) {
+        if (config == null) {
             return unlockedFlowers;
         }
 
-        AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+        ResourceLocation resolvedSpeciesId = config.speciesId;
+        if (config.specimenKey != null) {
+            AnalyzedBeeTraits specimenTraits = this.analyzedSpecies.get(config.specimenKey);
+            if (specimenTraits != null) {
+                resolvedSpeciesId = specimenTraits.speciesId;
+            }
+        }
+        if (resolvedSpeciesId == null) {
+            return unlockedFlowers;
+        }
+
+        AnalyzedBeeTraits traits = getAnalyzedTraitsForSpecies(resolvedSpeciesId);
         if (traits == null || traits.requiredFlowerId == null) {
-            debugLog("Virtual hive flower selection has no species flower requirement: species={} unlockedFlowers={}", config.speciesId, unlockedFlowers);
+            debugLog("Virtual hive flower selection has no species flower requirement: species={} unlockedFlowers={}", resolvedSpeciesId, unlockedFlowers);
             return unlockedFlowers;
         }
 
@@ -1181,7 +1376,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 compatibleFlowers.add(flowerId);
             }
         }
-        debugLog("Virtual hive compatible flowers for species={} requiredFlower={} -> {}", config.speciesId, traits.requiredFlowerId, compatibleFlowers);
+        debugLog("Virtual hive compatible flowers for species={} requiredFlower={} -> {}", resolvedSpeciesId, traits.requiredFlowerId, compatibleFlowers);
         return compatibleFlowers;
     }
 
@@ -1240,11 +1435,14 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
 
         this.pendingAnalyzeSpeciesId = id;
+        this.pendingAnalyzeKey = createBeeAnalysisKey(id, genome, speed, activityId, biomeId, flowerId);
         this.pendingAnalyzeSpeed = speed;
         this.pendingAnalyzeActivityId = activityId;
         this.pendingAnalyzeBiomeId = biomeId;
         this.pendingAnalyzeFlowerId = flowerId;
         this.pendingAnalyzeAlleles = extractAlleles(genome);
+        this.pendingAnalyzeGenome = genome;
+        this.pendingAnalyzeBeeStack = stack.copy();
         this.analyzing = true;
         this.analyzeTicksRemaining = ANALYZE_DURATION_TICKS;
         this.analyzeEnergyRemaining = ANALYZE_RF_COST;
@@ -1264,6 +1462,69 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             return false;
         }
 
+        if (customTag.contains(PAPER_SPECIMENS_KEY, Tag.TAG_LIST)) {
+            ListTag specimenList = customTag.getList(PAPER_SPECIMENS_KEY, Tag.TAG_COMPOUND);
+            ListTag biomeList = customTag.getList(PAPER_BIOMES_KEY, Tag.TAG_STRING);
+            ListTag flowerList = customTag.getList(PAPER_FLOWERS_KEY, Tag.TAG_STRING);
+            int unlocked = 0;
+            boolean changed = false;
+            for (int i = 0; i < specimenList.size(); i++) {
+                CompoundTag specimenTag = specimenList.getCompound(i);
+                ResourceLocation id = safeParseSpeciesId(specimenTag.getString("Species"));
+                if (id == null) {
+                    continue;
+                }
+
+                String key = specimenTag.contains("Key", Tag.TAG_STRING) && !specimenTag.getString("Key").isEmpty()
+                    ? specimenTag.getString("Key")
+                    : createBeeAnalysisKey(
+                        id,
+                        specimenTag.contains(PAPER_ALLELES_KEY, Tag.TAG_COMPOUND)
+                            ? parseAlleles(specimenTag.getCompound(PAPER_ALLELES_KEY))
+                            : resolveSpeciesDefaults(id).alleles,
+                        specimenTag.contains("Speed", Tag.TAG_FLOAT) ? specimenTag.getFloat("Speed") : resolveSpeciesDefaults(id).speed,
+                        ResourceLocation.tryParse(specimenTag.getString("Activity")),
+                        ResourceLocation.tryParse(specimenTag.getString("Biome")),
+                        ResourceLocation.tryParse(specimenTag.getString("Flower"))
+                    );
+
+                if (!this.analyzedSpecies.containsKey(key)) {
+                    float speed = specimenTag.contains("Speed", Tag.TAG_FLOAT) ? specimenTag.getFloat("Speed") : resolveSpeciesDefaults(id).speed;
+                    ResourceLocation activityId = ResourceLocation.tryParse(specimenTag.getString("Activity"));
+                    ResourceLocation biomeId = ResourceLocation.tryParse(specimenTag.getString("Biome"));
+                    ResourceLocation flowerId = ResourceLocation.tryParse(specimenTag.getString("Flower"));
+                    Map<String, String> alleles = specimenTag.contains(PAPER_ALLELES_KEY, Tag.TAG_COMPOUND)
+                        ? parseAlleles(specimenTag.getCompound(PAPER_ALLELES_KEY))
+                        : resolveSpeciesDefaults(id).alleles;
+                    ItemStack beeStack = specimenTag.contains("BeeStack", Tag.TAG_COMPOUND)
+                        ? ItemStack.parseOptional(this.level != null ? this.level.registryAccess() : null, specimenTag.getCompound("BeeStack"))
+                        : ItemStack.EMPTY;
+                    this.analyzedSpecies.put(key, new AnalyzedBeeTraits(id, speed, activityId, biomeId, flowerId, alleles, null, beeStack));
+                    unlocked++;
+                    changed = true;
+                }
+            }
+
+            for (int i = 0; i < biomeList.size(); i++) {
+                ResourceLocation id = ResourceLocation.tryParse(biomeList.getString(i));
+                if (id != null && this.unlockedBiomes.add(id)) {
+                    changed = true;
+                }
+            }
+            for (int i = 0; i < flowerList.size(); i++) {
+                ResourceLocation id = ResourceLocation.tryParse(flowerList.getString(i));
+                if (id != null && this.unlockedFlowers.add(id)) {
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                LOGGER.info("Analyzer imported specimen card: controller={}, unlocked={}", this.worldPosition, unlocked);
+                return true;
+            }
+            return false;
+        }
+
         if (customTag.contains(PAPER_SPECIES_KEY, Tag.TAG_LIST)) {
             ListTag speciesList = customTag.getList(PAPER_SPECIES_KEY, Tag.TAG_STRING);
             ListTag biomeList = customTag.getList(PAPER_BIOMES_KEY, Tag.TAG_STRING);
@@ -1271,13 +1532,14 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             int unlocked = 0;
             boolean changed = false;
             for (int i = 0; i < speciesList.size(); i++) {
-                ResourceLocation id = ResourceLocation.tryParse(speciesList.getString(i));
+                ResourceLocation id = safeParseSpeciesId(speciesList.getString(i));
                 if (id == null) {
                     continue;
                 }
 
-                if (!this.analyzedSpecies.containsKey(id)) {
-                    this.analyzedSpecies.put(id, resolveSpeciesDefaults(id));
+                String legacyKey = createBeeAnalysisKey(id, resolveSpeciesDefaults(id).alleles, resolveSpeciesDefaults(id).speed, resolveSpeciesDefaults(id).activityTypeId, resolveSpeciesDefaults(id).requiredBiomeId, resolveSpeciesDefaults(id).requiredFlowerId);
+                if (this.analyzedSpecies.values().stream().noneMatch(traits -> id.equals(traits.speciesId))) {
+                    this.analyzedSpecies.put(legacyKey, resolveSpeciesDefaults(id));
                     unlocked++;
                     changed = true;
                 }
@@ -1304,10 +1566,46 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
 
         ListTag speciesList = new ListTag();
-        for (ResourceLocation speciesId : this.analyzedSpecies.keySet()) {
-            speciesList.add(StringTag.valueOf(speciesId.toString()));
+        for (AnalyzedBeeTraits traits : this.analyzedSpecies.values()) {
+            if (traits.speciesId != null) {
+                boolean alreadyPresent = false;
+                for (Tag tagValue : speciesList) {
+                    if (tagValue instanceof StringTag stringTag && stringTag.getAsString().equals(traits.speciesId.toString())) {
+                        alreadyPresent = true;
+                        break;
+                    }
+                }
+                if (!alreadyPresent) {
+                    speciesList.add(StringTag.valueOf(traits.speciesId.toString()));
+                }
+            }
         }
         customTag.put(PAPER_SPECIES_KEY, speciesList);
+
+        ListTag specimenList = new ListTag();
+        for (Map.Entry<String, AnalyzedBeeTraits> entry : this.analyzedSpecies.entrySet()) {
+            AnalyzedBeeTraits traits = entry.getValue();
+            if (traits == null || traits.speciesId == null) {
+                continue;
+            }
+
+            CompoundTag specimenTag = new CompoundTag();
+            specimenTag.putString("Key", entry.getKey());
+            specimenTag.putString("Species", traits.speciesId.toString());
+            specimenTag.putFloat("Speed", traits.speed);
+            specimenTag.putString("Activity", traits.activityTypeId == null ? "" : traits.activityTypeId.toString());
+            specimenTag.putString("Biome", traits.requiredBiomeId == null ? "" : traits.requiredBiomeId.toString());
+            specimenTag.putString("Flower", traits.requiredFlowerId == null ? "" : traits.requiredFlowerId.toString());
+
+            CompoundTag allelesTag = new CompoundTag();
+            for (Map.Entry<String, String> allele : traits.alleles.entrySet()) {
+                allelesTag.putString(allele.getKey(), allele.getValue());
+            }
+            specimenTag.put(PAPER_ALLELES_KEY, allelesTag);
+            specimenTag.put("BeeStack", traits.beeStack.saveOptional(this.level != null ? this.level.registryAccess() : null));
+            specimenList.add(specimenTag);
+        }
+        customTag.put(PAPER_SPECIMENS_KEY, specimenList);
 
         ListTag biomeList = new ListTag();
         for (ResourceLocation biomeId : getUnlockedBiomeIds()) {
@@ -1369,10 +1667,11 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             return;
         }
 
-        if (this.pendingAnalyzeSpeciesId != null) {
-            AnalyzedBeeTraits previous = this.analyzedSpecies.put(this.pendingAnalyzeSpeciesId, new AnalyzedBeeTraits(this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId, this.pendingAnalyzeBiomeId, this.pendingAnalyzeFlowerId, this.pendingAnalyzeAlleles));
+        if (this.pendingAnalyzeSpeciesId != null && isValidSpeciesId(this.pendingAnalyzeSpeciesId)) {
+            String key = this.pendingAnalyzeKey != null ? this.pendingAnalyzeKey : createBeeAnalysisKey(this.pendingAnalyzeSpeciesId, this.pendingAnalyzeAlleles, this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId, this.pendingAnalyzeBiomeId, this.pendingAnalyzeFlowerId);
+            AnalyzedBeeTraits previous = this.analyzedSpecies.put(key, new AnalyzedBeeTraits(this.pendingAnalyzeSpeciesId, this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId, this.pendingAnalyzeBiomeId, this.pendingAnalyzeFlowerId, this.pendingAnalyzeAlleles, this.pendingAnalyzeGenome, this.pendingAnalyzeBeeStack.copy()));
             if (previous == null || previous.speed != this.pendingAnalyzeSpeed || !java.util.Objects.equals(previous.activityTypeId, this.pendingAnalyzeActivityId) || !java.util.Objects.equals(previous.requiredBiomeId, this.pendingAnalyzeBiomeId) || !java.util.Objects.equals(previous.requiredFlowerId, this.pendingAnalyzeFlowerId)) {
-                LOGGER.info("Bee analyzed: controller={}, species={}, speed={}, activity={}", this.worldPosition, this.pendingAnalyzeSpeciesId, this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId);
+                LOGGER.info("Bee analyzed: controller={}, species={}, key={}, speed={}, activity={}", this.worldPosition, this.pendingAnalyzeSpeciesId, key, this.pendingAnalyzeSpeed, this.pendingAnalyzeActivityId);
             }
             if (this.pendingAnalyzeBiomeId != null) {
                 this.unlockedBiomes.add(this.pendingAnalyzeBiomeId);
@@ -1381,11 +1680,14 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             this.unlockedFlowers.add(this.pendingAnalyzeFlowerId);
         }
 
+        this.pendingAnalyzeKey = null;
         this.pendingAnalyzeSpeciesId = null;
         this.pendingAnalyzeActivityId = null;
         this.pendingAnalyzeBiomeId = null;
         this.pendingAnalyzeFlowerId = null;
         this.pendingAnalyzeAlleles = Map.of();
+        this.pendingAnalyzeGenome = null;
+        this.pendingAnalyzeBeeStack = ItemStack.EMPTY;
         this.pendingAnalyzeSpeed = 0.0F;
         this.analyzing = false;
         this.analyzeTicksRemaining = 0;
@@ -1416,12 +1718,12 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 continue;
             }
 
-            IBeeSpecies species = SpeciesUtil.getBeeSpecies(config.speciesId);
+            IBeeSpecies species = safeGetBeeSpecies(config.speciesId);
             if (species == null) {
                 continue;
             }
 
-            if (!hasOutputCapacityForSpecies(species)) {
+            if (!hasOutputCapacityForSpecies(config.speciesId)) {
                 stopped = true;
                 break;
             }
@@ -1444,20 +1746,20 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 continue;
             }
 
-            IBeeSpecies species = SpeciesUtil.getBeeSpecies(config.speciesId);
+            IBeeSpecies species = safeGetBeeSpecies(config.speciesId);
             if (species == null) {
                 continue;
             }
 
-            if (!hasOutputCapacityForSpecies(species)) {
+            if (!hasOutputCapacityForSpecies(config.speciesId)) {
                 continue;
             }
 
-            AnalyzedBeeTraits traits = this.analyzedSpecies.get(config.speciesId);
+            AnalyzedBeeTraits traits = config.specimenKey == null ? this.analyzedSpecies.get(config.speciesId) : this.analyzedSpecies.get(config.specimenKey);
             double activityMultiplier = getActivityMultiplier(traits);
 
             for (int i = 0; i < config.instances; i++) {
-                produceForSpecies(species, level, activityMultiplier);
+                produceForSpecies(config.speciesId, level, activityMultiplier);
             }
         }
 
@@ -1482,7 +1784,35 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return (long) getRunningInstances() * RF_PER_TICK_INSTANCE;
     }
 
-    private void produceForSpecies(IBeeSpecies species, Level level, double activityMultiplier) {
+    private void produceForSpecies(ResourceLocation speciesId, Level level, double activityMultiplier) {
+        IBee savedBee = getSavedBeeForSpecies(speciesId);
+        if (savedBee != null) {
+            for (ItemStack stack : savedBee.getProduceList()) {
+                if (stack.isEmpty()) {
+                    continue;
+                }
+                double adjustedChance = 1.0D * activityMultiplier;
+                if (level.random.nextDouble() <= adjustedChance) {
+                    insertProducedStack(stack.copy());
+                }
+            }
+            for (ItemStack stack : savedBee.getSpecialtyList()) {
+                if (stack.isEmpty()) {
+                    continue;
+                }
+                double adjustedChance = 1.0D * activityMultiplier;
+                if (level.random.nextDouble() <= adjustedChance) {
+                    insertProducedStack(stack.copy());
+                }
+            }
+            return;
+        }
+
+        IBeeSpecies species = safeGetBeeSpecies(speciesId);
+        if (species == null) {
+            return;
+        }
+
         for (IProduct product : species.getProducts()) {
             double adjustedChance = product.chance() * activityMultiplier;
             if (level.random.nextDouble() <= adjustedChance) {
@@ -1717,7 +2047,13 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public List<ResourceLocation> getAnalyzedSpeciesIds() {
-        return List.copyOf(this.analyzedSpecies.keySet());
+        List<ResourceLocation> ids = new ArrayList<>();
+        for (AnalyzedBeeTraits traits : this.analyzedSpecies.values()) {
+            if (traits != null && traits.speciesId != null && !ids.contains(traits.speciesId)) {
+                ids.add(traits.speciesId);
+            }
+        }
+        return ids;
     }
 
     public List<ResourceLocation> getUnlockedBiomeIds() {
@@ -1732,43 +2068,111 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         return list;
     }
 
+    private @Nullable AnalyzedBeeTraits getAnalyzedTraitsForSpecies(ResourceLocation speciesId) {
+        if (!isValidSpeciesId(speciesId)) {
+            return null;
+        }
+        for (AnalyzedBeeTraits traits : this.analyzedSpecies.values()) {
+            if (speciesId.equals(traits.speciesId)) {
+                return traits;
+            }
+        }
+        return null;
+    }
+
     public float getSpeedForSpecies(ResourceLocation speciesId) {
-        if (speciesId == null) {
+        if (!isValidSpeciesId(speciesId)) {
             return 1.0F;
         }
-        AnalyzedBeeTraits traits = this.analyzedSpecies.get(speciesId);
+        AnalyzedBeeTraits traits = getAnalyzedTraitsForSpecies(speciesId);
         if (traits != null) {
             return traits.speed;
         }
         return resolveSpeciesDefaults(speciesId).speed;
     }
 
+    public float getSpeedForSpecimenKey(String specimenKey) {
+        if (specimenKey == null) {
+            return 0.0F;
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(specimenKey);
+        if (traits != null) {
+            return traits.speed;
+        }
+        return 0.0F;
+    }
+
     public Map<String, String> getAllelesForSpecies(ResourceLocation speciesId) {
-        if (speciesId == null) {
+        if (!isValidSpeciesId(speciesId)) {
             return Map.of();
         }
-        AnalyzedBeeTraits traits = this.analyzedSpecies.get(speciesId);
+        AnalyzedBeeTraits traits = getAnalyzedTraitsForSpecies(speciesId);
         if (traits == null) {
             return Map.of();
         }
         return traits.alleles;
     }
 
+    public ItemStack getBeeStackForSpecies(ResourceLocation speciesId) {
+        if (!isValidSpeciesId(speciesId)) {
+            return ItemStack.EMPTY;
+        }
+        AnalyzedBeeTraits traits = getAnalyzedTraitsForSpecies(speciesId);
+        if (traits == null) {
+            return ItemStack.EMPTY;
+        }
+        if (!traits.beeStack.isEmpty()) {
+            return traits.beeStack.copy();
+        }
+        return ItemStack.EMPTY;
+    }
+
     public ResourceLocation getActivityForSpecies(ResourceLocation speciesId) {
         if (speciesId == null) {
             return null;
         }
-        AnalyzedBeeTraits traits = this.analyzedSpecies.get(speciesId);
+        AnalyzedBeeTraits traits = getAnalyzedTraitsForSpecies(speciesId);
         if (traits != null) {
             return traits.activityTypeId;
         }
         return resolveSpeciesDefaults(speciesId).activityTypeId;
     }
 
+    public List<String> getAnalyzedSpecimenKeys() {
+        return new ArrayList<>(this.analyzedSpecies.keySet());
+    }
+
+    public ResourceLocation getSpeciesForSpecimenKey(String specimenKey) {
+        if (specimenKey == null) {
+            return null;
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(specimenKey);
+        return traits == null ? null : traits.speciesId;
+    }
+
+    public Map<String, String> getAllelesForSpecimenKey(String specimenKey) {
+        if (specimenKey == null) {
+            return Map.of();
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(specimenKey);
+        return traits == null ? Map.of() : traits.alleles;
+    }
+
+    public ItemStack getBeeStackForSpecimenKey(String specimenKey) {
+        if (specimenKey == null) {
+            return ItemStack.EMPTY;
+        }
+        AnalyzedBeeTraits traits = this.analyzedSpecies.get(specimenKey);
+        if (traits == null) {
+            return ItemStack.EMPTY;
+        }
+        return traits.beeStack.copy();
+    }
+
     public List<VirtualHiveConfig> getVirtualHives() {
         List<VirtualHiveConfig> copy = new ArrayList<>(this.virtualHives.size());
         for (VirtualHiveConfig config : this.virtualHives) {
-            copy.add(new VirtualHiveConfig(config.speciesId, config.biomeId, config.flowerItemId, config.instances));
+            copy.add(new VirtualHiveConfig(config.specimenKey, config.speciesId, config.biomeId, config.flowerItemId, config.instances));
         }
         return copy;
     }
@@ -1891,6 +2295,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         tag.putBoolean("Analyzing", this.analyzing);
         tag.putInt("AnalyzeTicksRemaining", this.analyzeTicksRemaining);
         tag.putLong("AnalyzeEnergyRemaining", this.analyzeEnergyRemaining);
+        tag.putString("PendingAnalyzeKey", this.pendingAnalyzeKey == null ? "" : this.pendingAnalyzeKey);
         tag.putString("PendingAnalyzeSpecies", this.pendingAnalyzeSpeciesId == null ? "" : this.pendingAnalyzeSpeciesId.toString());
         tag.putFloat("PendingAnalyzeSpeed", this.pendingAnalyzeSpeed);
         tag.putString("PendingAnalyzeActivity", this.pendingAnalyzeActivityId == null ? "" : this.pendingAnalyzeActivityId.toString());
@@ -1901,6 +2306,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             pendingAlleles.putString(entry.getKey(), entry.getValue());
         }
         tag.put("PendingAnalyzeAlleles", pendingAlleles);
+        tag.put("PendingAnalyzeStack", this.pendingAnalyzeBeeStack.saveOptional(this.level != null ? this.level.registryAccess() : null));
         tag.putLong("UiPowerStored", this.uiPowerStored);
         tag.putLong("UiPowerCapacity", this.uiPowerCapacity);
         tag.putInt("UiAnalyzeProgress", this.uiAnalyzeProgress);
@@ -1921,9 +2327,10 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         tag.putInt("UiInvalidCount", this.uiInvalidCount);
 
         ListTag analyzed = new ListTag();
-        for (Map.Entry<ResourceLocation, AnalyzedBeeTraits> entry : this.analyzedSpecies.entrySet()) {
+        for (Map.Entry<String, AnalyzedBeeTraits> entry : this.analyzedSpecies.entrySet()) {
             CompoundTag speciesTag = new CompoundTag();
-            speciesTag.putString("Species", entry.getKey().toString());
+            speciesTag.putString("Key", entry.getKey());
+            speciesTag.putString("Species", entry.getValue().speciesId == null ? "" : entry.getValue().speciesId.toString());
             speciesTag.putFloat("Speed", entry.getValue().speed);
             speciesTag.putString("Activity", entry.getValue().activityTypeId == null ? "" : entry.getValue().activityTypeId.toString());
             speciesTag.putString("Biome", entry.getValue().requiredBiomeId == null ? "" : entry.getValue().requiredBiomeId.toString());
@@ -1934,6 +2341,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 allelesTag.putString(allele.getKey(), allele.getValue());
             }
             speciesTag.put(PAPER_ALLELES_KEY, allelesTag);
+            speciesTag.put("BeeStack", entry.getValue().beeStack.saveOptional(this.level != null ? this.level.registryAccess() : null));
             analyzed.add(speciesTag);
         }
         tag.put("AnalyzedSpecies", analyzed);
@@ -1953,6 +2361,7 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         ListTag hives = new ListTag();
         for (VirtualHiveConfig config : this.virtualHives) {
             CompoundTag hiveTag = new CompoundTag();
+            hiveTag.putString("SpecimenKey", config.specimenKey == null ? "" : config.specimenKey);
             hiveTag.putString("Species", config.speciesId == null ? "" : config.speciesId.toString());
             hiveTag.putString("Biome", config.biomeId == null ? "" : config.biomeId.toString());
             hiveTag.putString("Flower", config.flowerItemId == null ? "" : config.flowerItemId.toString());
@@ -2007,7 +2416,8 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         this.analyzing = tag.getBoolean("Analyzing");
         this.analyzeTicksRemaining = Math.max(0, tag.getInt("AnalyzeTicksRemaining"));
         this.analyzeEnergyRemaining = tag.contains("AnalyzeEnergyRemaining", Tag.TAG_LONG) ? Math.max(0L, tag.getLong("AnalyzeEnergyRemaining")) : 0L;
-        this.pendingAnalyzeSpeciesId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeSpecies"));
+        this.pendingAnalyzeKey = tag.contains("PendingAnalyzeKey", Tag.TAG_STRING) ? tag.getString("PendingAnalyzeKey") : null;
+        this.pendingAnalyzeSpeciesId = safeParseSpeciesId(tag.getString("PendingAnalyzeSpecies"));
         this.pendingAnalyzeSpeed = tag.contains("PendingAnalyzeSpeed", Tag.TAG_FLOAT) ? tag.getFloat("PendingAnalyzeSpeed") : 0.0F;
         this.pendingAnalyzeActivityId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeActivity"));
         this.pendingAnalyzeBiomeId = ResourceLocation.tryParse(tag.getString("PendingAnalyzeBiome"));
@@ -2019,6 +2429,9 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 this.pendingAnalyzeAlleles.put(key, pendingAlleles.getString(key));
             }
         }
+        this.pendingAnalyzeBeeStack = tag.contains("PendingAnalyzeStack", Tag.TAG_COMPOUND)
+            ? ItemStack.parseOptional(this.level != null ? this.level.registryAccess() : null, tag.getCompound("PendingAnalyzeStack"))
+            : ItemStack.EMPTY;
         this.uiPowerStored = tag.contains("UiPowerStored", Tag.TAG_LONG) ? tag.getLong("UiPowerStored") : 0L;
         this.uiPowerCapacity = tag.contains("UiPowerCapacity", Tag.TAG_LONG) ? tag.getLong("UiPowerCapacity") : 0L;
         this.uiAnalyzeProgress = tag.contains("UiAnalyzeProgress", Tag.TAG_INT) ? tag.getInt("UiAnalyzeProgress") : (this.analyzing ? 0 : 100);
@@ -2042,8 +2455,9 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         ListTag analyzed = tag.getList("AnalyzedSpecies", Tag.TAG_COMPOUND);
         for (int i = 0; i < analyzed.size(); i++) {
             CompoundTag speciesTag = analyzed.getCompound(i);
-            ResourceLocation id = ResourceLocation.tryParse(speciesTag.getString("Species"));
-            if (id == null) {
+            ResourceLocation speciesId = safeParseSpeciesId(speciesTag.getString("Species"));
+            String key = speciesTag.contains("Key", Tag.TAG_STRING) ? speciesTag.getString("Key") : (speciesId == null ? Integer.toHexString(i) : speciesId.toString());
+            if (speciesId == null && key.isEmpty()) {
                 continue;
             }
 
@@ -2054,19 +2468,23 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
             Map<String, String> alleles = new HashMap<>();
             if (speciesTag.contains(PAPER_ALLELES_KEY, Tag.TAG_COMPOUND)) {
                 CompoundTag allelesTag = speciesTag.getCompound(PAPER_ALLELES_KEY);
-                for (String key : allelesTag.getAllKeys()) {
-                    alleles.put(key, allelesTag.getString(key));
+                for (String alleleKey : allelesTag.getAllKeys()) {
+                    alleles.put(alleleKey, allelesTag.getString(alleleKey));
                 }
             }
-            this.analyzedSpecies.put(id, new AnalyzedBeeTraits(speed, activityId, biomeId, flowerId, alleles));
+            ItemStack beeStack = speciesTag.contains("BeeStack", Tag.TAG_COMPOUND)
+                ? ItemStack.parseOptional(this.level != null ? this.level.registryAccess() : null, speciesTag.getCompound("BeeStack"))
+                : ItemStack.EMPTY;
+            this.analyzedSpecies.put(key, new AnalyzedBeeTraits(speciesId, speed, activityId, biomeId, flowerId, alleles, null, beeStack));
         }
 
         if (this.analyzedSpecies.isEmpty()) {
             ListTag legacyAnalyzed = tag.getList("AnalyzedSpecies", Tag.TAG_STRING);
             for (int i = 0; i < legacyAnalyzed.size(); i++) {
-                ResourceLocation id = ResourceLocation.tryParse(legacyAnalyzed.getString(i));
+                ResourceLocation id = safeParseSpeciesId(legacyAnalyzed.getString(i));
                 if (id != null) {
-                    this.analyzedSpecies.put(id, resolveSpeciesDefaults(id));
+                    String legacyKey = createBeeAnalysisKey(id, resolveSpeciesDefaults(id).alleles, resolveSpeciesDefaults(id).speed, resolveSpeciesDefaults(id).activityTypeId, resolveSpeciesDefaults(id).requiredBiomeId, resolveSpeciesDefaults(id).requiredFlowerId);
+                    this.analyzedSpecies.put(legacyKey, new AnalyzedBeeTraits(id, resolveSpeciesDefaults(id).speed, resolveSpeciesDefaults(id).activityTypeId, resolveSpeciesDefaults(id).requiredBiomeId, resolveSpeciesDefaults(id).requiredFlowerId, resolveSpeciesDefaults(id).alleles, null, ItemStack.EMPTY));
                 }
             }
         }
@@ -2088,17 +2506,20 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
                 this.unlockedFlowers.add(id);
             }
         }
-        ensureDefaultUnlocks();
 
         this.virtualHives.clear();
         ListTag hives = tag.getList("VirtualHives", Tag.TAG_COMPOUND);
         for (int i = 0; i < hives.size(); i++) {
             CompoundTag hiveTag = hives.getCompound(i);
+            String specimenKey = hiveTag.contains("SpecimenKey", Tag.TAG_STRING) ? hiveTag.getString("SpecimenKey") : null;
             ResourceLocation speciesId = ResourceLocation.tryParse(hiveTag.getString("Species"));
             ResourceLocation biomeId = ResourceLocation.tryParse(hiveTag.getString("Biome"));
             ResourceLocation flowerId = ResourceLocation.tryParse(hiveTag.getString("Flower"));
             int instances = Math.max(0, hiveTag.getInt("Instances"));
-            this.virtualHives.add(new VirtualHiveConfig(speciesId, biomeId, flowerId, instances));
+            if (specimenKey != null && specimenKey.isEmpty()) {
+                specimenKey = null;
+            }
+            this.virtualHives.add(new VirtualHiveConfig(specimenKey, speciesId, biomeId, flowerId, instances));
         }
 
         this.powerSupplyPositions.clear();
@@ -2239,12 +2660,18 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     public static final class VirtualHiveConfig {
+        public String specimenKey;
         public ResourceLocation speciesId;
         public ResourceLocation biomeId;
         public ResourceLocation flowerItemId;
         public int instances;
 
         public VirtualHiveConfig(ResourceLocation speciesId, ResourceLocation biomeId, ResourceLocation flowerItemId, int instances) {
+            this(null, speciesId, biomeId, flowerItemId, instances);
+        }
+
+        public VirtualHiveConfig(String specimenKey, ResourceLocation speciesId, ResourceLocation biomeId, ResourceLocation flowerItemId, int instances) {
+            this.specimenKey = specimenKey;
             this.speciesId = speciesId;
             this.biomeId = biomeId;
             this.flowerItemId = flowerItemId;
@@ -2313,18 +2740,32 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     }
 
     private static final class AnalyzedBeeTraits {
+        final ResourceLocation speciesId;
         final float speed;
         final ResourceLocation activityTypeId;
         final ResourceLocation requiredBiomeId;
         final ResourceLocation requiredFlowerId;
         final Map<String, String> alleles;
+        final IGenome genome;
+        final ItemStack beeStack;
 
-        private AnalyzedBeeTraits(float speed, ResourceLocation activityTypeId, ResourceLocation requiredBiomeId, ResourceLocation requiredFlowerId, Map<String, String> alleles) {
+        private AnalyzedBeeTraits(ResourceLocation speciesId, float speed, ResourceLocation activityTypeId, ResourceLocation requiredBiomeId, ResourceLocation requiredFlowerId, Map<String, String> alleles) {
+            this(speciesId, speed, activityTypeId, requiredBiomeId, requiredFlowerId, alleles, null, ItemStack.EMPTY);
+        }
+
+        private AnalyzedBeeTraits(ResourceLocation speciesId, float speed, ResourceLocation activityTypeId, ResourceLocation requiredBiomeId, ResourceLocation requiredFlowerId, Map<String, String> alleles, IGenome genome) {
+            this(speciesId, speed, activityTypeId, requiredBiomeId, requiredFlowerId, alleles, genome, ItemStack.EMPTY);
+        }
+
+        private AnalyzedBeeTraits(ResourceLocation speciesId, float speed, ResourceLocation activityTypeId, ResourceLocation requiredBiomeId, ResourceLocation requiredFlowerId, Map<String, String> alleles, IGenome genome, ItemStack beeStack) {
+            this.speciesId = speciesId;
             this.speed = speed;
             this.activityTypeId = activityTypeId;
             this.requiredBiomeId = requiredBiomeId;
             this.requiredFlowerId = requiredFlowerId;
             this.alleles = alleles == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(alleles));
+            this.genome = genome;
+            this.beeStack = beeStack == null ? ItemStack.EMPTY : beeStack.copy();
         }
     }
 }

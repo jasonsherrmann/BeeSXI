@@ -237,6 +237,23 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
         return this.data.get(27);
     }
 
+    public java.util.List<String> getAnalyzedSpecimenKeys() {
+        return this.controller.getAnalyzedSpecimenKeys();
+    }
+
+    @Nullable
+    public ResourceLocation getSpeciesForSpecimenKey(String specimenKey) {
+        return this.controller.getSpeciesForSpecimenKey(specimenKey);
+    }
+
+    public java.util.Map<String, String> getAllelesForSpecimenKey(String specimenKey) {
+        return this.controller.getAllelesForSpecimenKey(specimenKey);
+    }
+
+    public ItemStack getBeeStackForSpecimenKey(String specimenKey) {
+        return this.controller.getBeeStackForSpecimenKey(specimenKey);
+    }
+
     public java.util.List<ResourceLocation> getAnalyzedSpeciesIds() {
         return this.controller.getAnalyzedSpeciesIds();
     }
@@ -254,12 +271,25 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     @Nullable
+    public String getSpecimenKeyForLine(int line) {
+        var hives = getVirtualHives();
+        if (line < 0 || line >= hives.size()) {
+            return null;
+        }
+        return hives.get(line).specimenKey;
+    }
+
+    @Nullable
     public ResourceLocation getSpeciesForLine(int line) {
         var hives = getVirtualHives();
         if (line < 0 || line >= hives.size()) {
             return null;
         }
-        return hives.get(line).speciesId;
+        BeeSXIControllerBlockEntity.VirtualHiveConfig config = hives.get(line);
+        if (config.specimenKey != null) {
+            return this.controller.getSpeciesForSpecimenKey(config.specimenKey);
+        }
+        return config.speciesId;
     }
 
     public int getInstancesForLine(int line) {
@@ -289,6 +319,10 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public float getSpeedForLine(int line) {
+        String specimenKey = getSpecimenKeyForLine(line);
+        if (specimenKey != null) {
+            return this.controller.getSpeedForSpecimenKey(specimenKey);
+        }
         ResourceLocation species = getSpeciesForLine(line);
         if (species == null) {
             return 0.0F;
@@ -308,6 +342,13 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
             return java.util.Map.of();
         }
         return this.controller.getAllelesForSpecies(speciesId);
+    }
+
+    public ItemStack getBeeStackForSpecies(ResourceLocation speciesId) {
+        if (speciesId == null) {
+            return ItemStack.EMPTY;
+        }
+        return this.controller.getBeeStackForSpecies(speciesId);
     }
 
     @Nullable
