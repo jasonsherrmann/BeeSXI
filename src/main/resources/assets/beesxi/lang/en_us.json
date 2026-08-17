@@ -35,5 +35,8 @@
   "item.beesxi.coolant_comb": "Coolant Comb",
   "item.beesxi.memory_crystal": "Memory Crystal",
   "item.beesxi.etched_wafer": "Etched Wafer",
-  "item.beesxi.glass_fiber": "Glass Fiber"
+  "item.beesxi.glass_fiber": "Glass Fiber",
+  "item.beesxi.silicon_wafer": "Silicon Wafer",
+  "item.beesxi.acid_bucket": "Acid Bucket",
+  "item.beesxi.coolant_bucket": "Coolant Bucket"
 }
