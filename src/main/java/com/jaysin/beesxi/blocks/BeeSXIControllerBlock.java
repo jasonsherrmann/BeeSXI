@@ -5,11 +5,13 @@ import javax.annotation.Nullable;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
@@ -91,12 +93,26 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
         builder.add(ASSEMBLED);
     }
 
+    private static ItemStack createControllerDrop(Level level, BlockPos pos) {
+        ItemStack stack = new ItemStack(BeeSXI.BEESXI_CONTROLLER_ITEM.get());
+        if (level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
+            CompoundTag tag = controller.saveWithFullMetadata(level.registryAccess());
+            if (!tag.isEmpty()) {
+                BlockItem.setBlockEntityData(stack, BeeSXI.BEESXI_CONTROLLER_BLOCK_ENTITY.get(), tag);
+            }
+        }
+        return stack;
+    }
+
     @Override
     public void onRemove(@Nonnull BlockState state, @Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState newState, boolean isMoving) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
             if (level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
                 controller.clearAssembledStateForConnectedStructure();
                 Containers.dropContents(level, pos, controller);
+                if (!level.isClientSide) {
+                    popResource(level, pos, createControllerDrop(level, pos));
+                }
             }
             BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }
@@ -106,7 +122,7 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
     @Override
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
         if (!level.isClientSide && !player.isCreative()) {
-            popResource(level, pos, new ItemStack(this));
+            popResource(level, pos, createControllerDrop(level, pos));
             if (level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
                 Containers.dropContents(level, pos, controller);
             }
