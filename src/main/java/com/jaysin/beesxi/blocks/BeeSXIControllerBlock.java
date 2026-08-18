@@ -109,10 +109,6 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
             if (level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
                 controller.clearAssembledStateForConnectedStructure();
-                Containers.dropContents(level, pos, controller);
-                if (!level.isClientSide) {
-                    popResource(level, pos, createControllerDrop(level, pos));
-                }
             }
             BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }
@@ -122,10 +118,11 @@ public class BeeSXIControllerBlock extends Block implements EntityBlock {
     @Override
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
         if (!level.isClientSide && !player.isCreative()) {
-            popResource(level, pos, createControllerDrop(level, pos));
             if (level.getBlockEntity(pos) instanceof BeeSXIControllerBlockEntity controller) {
+                controller.clearAssembledStateForConnectedStructure();
                 Containers.dropContents(level, pos, controller);
             }
+            popResource(level, pos, createControllerDrop(level, pos));
             BeeSXIControllerBlockEntity.requestValidationNear(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);
