@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "beesxi:coolant_comb"
+    }
+  },
+  "pattern": [
+    "WW",
+    "WW"
+
+  ],
+  "result": {
+    "id": "beesxi:coolant_comb_block",
+    "count": 1
+  }
+}

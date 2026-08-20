@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": {
+      "item": "beesxi:acidic_comb"
+    }
+  },
+  "pattern": [
+    "WW",
+    "WW"
+
+  ],
+  "result": {
+    "id": "beesxi:acid_comb_block",
+    "count": 1
+  }
+}
