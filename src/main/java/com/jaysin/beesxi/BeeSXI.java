@@ -22,7 +22,6 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
@@ -37,6 +36,7 @@ import com.jaysin.beesxi.blockentity.BeeSXIControllerBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIExportBusBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIPowerSupplyBlockEntity;
 import com.jaysin.beesxi.blockentity.BeeSXIWeatherReporterBlockEntity;
+import com.jaysin.beesxi.blocks.BeeSXIBlockHoneyComb;
 import com.jaysin.beesxi.blocks.BeeSXIControllerBlock;
 import com.jaysin.beesxi.blocks.BeeSXIExportBusBlock;
 import com.jaysin.beesxi.blocks.BeeSXIPartBlock;
@@ -54,7 +54,6 @@ import com.jaysin.beesxi.server.BeeSXIServerMenu;
 import com.jaysin.beesxi.server.BeeSXIWeatherReporterMenu;
 import com.jaysin.beesxi.bees.effects.BeeSXIBeeEfectTypes;
 
-import forestry.core.platform.models.ClientManager;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.item.Items;
 
@@ -93,6 +92,7 @@ public class BeeSXI {
         () -> new BeeSXIExportBusBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
     public static final DeferredBlock<Block> BEESXI_WEATHER_REPORTER = BLOCKS.register("beesxi_weather_reporter",
         () -> new BeeSXIWeatherReporterBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0F, 8.0F)));
+
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeeSXIControllerBlockEntity>> BEESXI_CONTROLLER_BLOCK_ENTITY =
         BLOCK_ENTITIES.register("beesxi_controller",
@@ -147,6 +147,16 @@ public class BeeSXI {
           ITEMS.register("acidic_comb", () -> new ModHoneycombItem(0xFF5BFF64, 0xFF98FF00));
     public static final DeferredHolder<Item, Item> COOLANT_COMB =
           ITEMS.register("coolant_comb", () -> new ModHoneycombItem(0xFF00EEFF, 0xFFA3D9FF));
+    public static final DeferredBlock<Block> ACID_COMB_BLOCK = BLOCKS.register("acid_comb_block",
+          () -> new BeeSXIBlockHoneyComb(0xFF5BFF64, 0xFF98FF00));
+    public static final DeferredBlock<Block> COOLANT_COMB_BLOCK = BLOCKS.register("coolant_comb_block",
+          () -> new BeeSXIBlockHoneyComb(0xFF00EEFF, 0xFFA3D9FF));
+    public static final DeferredHolder<Item, Item> ACID_COMB_BLOCK_ITEM = ITEMS.register("acid_comb_block",
+          () -> new BlockItem(ACID_COMB_BLOCK.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, Item> COOLANT_COMB_BLOCK_ITEM = ITEMS.register("coolant_comb_block",
+          () -> new BlockItem(COOLANT_COMB_BLOCK.get(), new Item.Properties()));
+                
+
 
 
    // 1. Fluid Type
@@ -230,6 +240,8 @@ public class BeeSXI {
                 output.accept(COOLANT_DROP.get());
                 output.accept(ACIDIC_COMB.get());
                 output.accept(COOLANT_COMB.get());
+                output.accept(ACID_COMB_BLOCK_ITEM.get());
+                output.accept(COOLANT_COMB_BLOCK_ITEM.get());
                  
             })
             .build());

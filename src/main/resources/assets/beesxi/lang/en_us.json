@@ -38,5 +38,8 @@
   "item.beesxi.glass_fiber": "Glass Fiber",
   "item.beesxi.silicon_wafer": "Silicon Wafer",
   "item.beesxi.acid_bucket": "Acid Bucket",
-  "item.beesxi.coolant_bucket": "Coolant Bucket"
+  "item.beesxi.coolant_bucket": "Coolant Bucket",
+  "block.beesxi.acid_comb_block": "Acid Comb Block",
+  "block.beesxi.coolant_comb_block": "Coolant Comb Block"
+  
 }

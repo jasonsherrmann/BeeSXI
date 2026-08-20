@@ -218,7 +218,7 @@ public class BeeSXIServerMenu extends AbstractContainerMenu {
     }
 
     public int getStructureAnalyzerCount() {
-        return this.data.get(23);
+        return this.data.get(22);
     }
 
     public int getStructurePowerSupplyCount() {

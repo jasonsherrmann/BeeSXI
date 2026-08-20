@@ -2,12 +2,12 @@
 Needed for MVP
 ========================
 
+
+
 QA check analyzer (shouldnt analyze already analyzed bees)
 Have bees in vHive tab be analysed
 pull bee into controller inventory while analyzing
 change stack size on analyzer,weatherreporter, 
-finish new bees
-add fire bee effect
 
 
 
@@ -29,9 +29,6 @@ BeeSXI Controller should say something else once the multiblock is built
 
 
 
-Add EcksOdinson to list of Special Thanks for help with Export Bus
-
-
 
 =================================
 Nice to haves
@@ -41,6 +38,6 @@ Custom models
 Analyzer shows what bee is being analyzed (would need to be a block entity with an inventory etc)
 Make the machine make noise when its running, powered on, powered off etc
 Turn off when redstone connected? new block, and a stop button in the gui
-Additional tiers of CPU/RAM/HDD
+Additional tiers of CPU/RAM/HDD rip HDD
 Allow more than one analyzer?
 Make the multiblock load the chunks its in? what if its split over the chunk line?

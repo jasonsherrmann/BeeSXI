@@ -1,0 +1,7 @@
+{
+  "parent": "beesxi:block/acid_comb_block",
+  "textures": {
+    "layer0": "forestry:item/bee_combs.0",
+    "layer1": "forestry:item/bee_combs.1"
+  }
+}
