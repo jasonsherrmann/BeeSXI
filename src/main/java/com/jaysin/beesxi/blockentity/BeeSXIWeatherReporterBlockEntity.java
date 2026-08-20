@@ -189,9 +189,6 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
             }
 
             inputStack.shrink(1);
-            if (inputStack.isEmpty()) {
-                this.items.set(INPUT_SLOT, ItemStack.EMPTY);
-            }
             this.pendingBiome = biomeAtPosition;
             this.processing = true;
             this.progressTicks = 0;
@@ -335,9 +332,6 @@ public class BeeSXIWeatherReporterBlockEntity extends BlockEntity implements Con
     public void setItem(int slot, ItemStack stack) {
         if (slot < 0 || slot >= SIZE) {
             return;
-        }
-        if (slot == INPUT_SLOT && stack.getCount() > 1) {
-            stack.setCount(1);
         }
         this.items.set(slot, stack);
         setChanged();
