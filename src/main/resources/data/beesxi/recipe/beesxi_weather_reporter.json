@@ -6,7 +6,7 @@
       "item": "forestry:portable_analyzer"
     },
     "X": {
-      "item": "forestry:raintank"
+      "tag": "c:glass_blocks"
     },
     "Y": {
       "item": "minecraft:iron_ingot"

@@ -109,9 +109,8 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
     private static final long RF_PER_TICK_CPU = 0L;
     private static final long RF_PER_TICK_RAM = 0L;
     private static final long RF_PER_TICK_CONTROLLER = 0L;
-    private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL, ForestryActivityTypes.CATHEMERAL);
+    private static final Set<ResourceLocation> HALF_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.DIURNAL, ForestryActivityTypes.NOCTURNAL, ForestryActivityTypes.CATHEMERAL, ForestryActivityTypes.CREPUSCULAR);
     private static final Set<ResourceLocation> FULL_RATE_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.METATURNAL);
-    private static final Set<ResourceLocation> ONE_TWELFTH_ACTIVITY_TYPES = Set.of(ForestryActivityTypes.CREPUSCULAR);
     private static final int[][] CARDINAL_DIRECTIONS = {
         {1, 0, 0}, {-1, 0, 0},
         {0, 1, 0}, {0, -1, 0},
@@ -1688,9 +1687,6 @@ public class BeeSXIControllerBlockEntity extends BlockEntity implements Containe
         }
         if (FULL_RATE_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
             return 1.0D;
-        }
-        if (ONE_TWELFTH_ACTIVITY_TYPES.contains(traits.activityTypeId)) {
-            return 1.0D / 12.0D;
         }
         return 1.0D;
     }
