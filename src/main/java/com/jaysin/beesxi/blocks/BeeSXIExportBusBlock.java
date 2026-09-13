@@ -49,7 +49,6 @@ public class BeeSXIExportBusBlock extends BeeSXIPartBlock implements EntityBlock
     @Override
     public BlockState playerWillDestroy(@Nonnull Level level, @Nonnull BlockPos pos, @Nonnull BlockState state, @Nonnull Player player) {
         if (!level.isClientSide && !player.isCreative()) {
-            popResource(level, pos, new ItemStack(this));
             if (level.getBlockEntity(pos) instanceof BeeSXIExportBusBlockEntity exportBus) {
                 Containers.dropContents(level, pos, exportBus);
             }
